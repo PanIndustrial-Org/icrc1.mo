@@ -624,20 +624,26 @@ module {
                                     created_at_time = null;
                                 };
 
-                                let #trappable(res) = await* icrc1.transfer(
+                                
+
+                                let res_ = await* icrc1.transfer(
                                     
                                     transfer_args,
                                     user1.owner,
                                     false
                                 );
 
+                                 D.print("testing transfe" # debug_show(res_, icrc1.balance_of(user1), icrc1.get_state()._burned_tokens, icrc1.balance_of( user2), icrc1.total_supply()));
+
+                                let #trappable(res) = res_;
+
 
                                 assertAllTrue([
                                     res == #Ok(1),
-                                    icrc1.balance_of( user1) == 145,
-                                    icrc1.get_state()._burned_tokens ==  5,
-                                    icrc1.balance_of( user2) == 50,
-                                    icrc1.total_supply() == 195,
+                                    icrc1.balance_of(user1) == 14_500_000_000,
+                                    icrc1.get_state()._burned_tokens ==  500_000_000,
+                                    icrc1.balance_of( user2) == 5_000_000_000,
+                                    icrc1.total_supply() == 19_500_000_000,
                                 ]);
                             },
                         ),

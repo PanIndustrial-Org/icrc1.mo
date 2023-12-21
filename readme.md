@@ -1,5 +1,7 @@
 # icrc1.mo
 
+## Warning: This is an alpha release and this code has not been audited. Use at your own risk
+
 This repo contains the implementation of the 
 [ICRC-1](https://github.com/dfinity/ICRC-1) token standard. 
 
@@ -184,24 +186,6 @@ Wire these functions up by including them in your environment object.
 This library implements the [Textual Representation](https://github.com/dfinity/ICRC-1/blob/main/standards/ICRC-1/README.md#textual-representation-of-accounts) format for accounts defined by the standard. It utilizes this implementation to encode each account into a sequence of bytes for improved hashing and comparison.
 To help with this process, the library provides functions in the [ICRC1/Account](./src/ICRC1/Account.mo) module for [encoding](./docs/ICRC1/Account.md#encode), [decoding](./docs/ICRC1/Account.md#decode), [converting from text](./docs/ICRC1/Account.md#fromText), and [converting to text](./docs/ICRC1/Account.md#toText).
 
-
-## Tests
-#### Internal Tests
-- Download and Install [vessel](https://github.com/dfinity/vessel)
-- Run `make test` 
-- Run `make actor-test`
-
-#### [Dfinity's ICRC-1 Reference Tests](https://github.com/dfinity/ICRC-1/tree/main/test)
-- Install Rust and Cargo via [rustup](https://rustup.rs/)
-
-```
-    curl https://sh.rustup.rs -sSf | sh
-```
-- Then run the `ref-test` command
-
-```
-    make ref-test
-```
 
 ## Funding
 
