@@ -12,6 +12,13 @@ This library does not contain a full-featured, scalable, implementation of the l
 mops add icrc1-mo
 ```
 
+## Testing
+Since this item contains asyn test you need to use an actor to test it.  See /tests/ICRC1/ICRC1.ActorTest.mo
+
+```
+make actor-test
+```
+
 ## Usage
 ```motoko
 import ICRC1 "mo:icrc1.mo";
