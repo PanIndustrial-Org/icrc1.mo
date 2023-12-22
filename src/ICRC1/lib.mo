@@ -69,6 +69,8 @@ module {
     public type TxLog =               MigrationTypes.Current.TxLog;
     public type TxIndex =             MigrationTypes.Current.TxIndex;
 
+    public type UpdateLedgerInfoRequest = MigrationTypes.Current.UpdateLedgerInfoRequest;
+
 
     public type TransferResult = MigrationTypes.Current.TransferResult;
     public type TokenTransferredListener = MigrationTypes.Current.TokenTransferredListener;
@@ -198,13 +200,6 @@ module {
           };
       };
 
-      /// Sets the transfer fee to the specified rate.
-      ///
-      /// Parameters:
-      /// - `fee`: A `Fee` structure specifying the updated fee.
-      public func set_fee(fee : Fee) {
-          state._fee := ?fee;
-      };
 
       /// `metadata`
       ///
@@ -217,7 +212,7 @@ module {
          let md = switch(state.metadata){
           case(?val)val;
           case(null) {
-            let newdata = Utils.init_metadata(state, canister);
+            let newdata = init_metadata();
             state.metadata := ?newdata;
             newdata
           };
@@ -233,6 +228,125 @@ module {
           case(null){D.trap("unreachable metadata");}
          };
       };
+
+      /// `register_metadata`
+      ///
+      /// Adds metadata to the metadata list from outside the class
+      /// Used by ICRC2 and 3 to add metadata dataum.
+      ///
+      /// Returns:
+      /// `MetaData`: A record containing all metadata entries for this ledger.
+      public func register_metadata(request: [MetaDatum]) : [MetaDatum]{
+        let md = switch(state.metadata){
+          case(?val){
+            switch(state.metadata){
+              case(?val){
+                switch(val){
+                  case(#Map(val)) val;
+                  case(_) [];
+                };
+              };
+              case(null) [];
+            };
+          };
+          case(null) [];
+         };
+
+        let results = Map.new<Text, MetaDatum>();
+        for(thisItem in md.vals()){
+          ignore Map.put(results, Map.thash, thisItem.0, thisItem);
+        };
+        for(thisItem in request.vals()){
+          ignore Map.put(results, Map.thash, thisItem.0, thisItem);
+        };
+
+        let finalresult = Iter.toArray<MetaDatum>(Map.vals(results));
+        state.metadata := ?#Map(finalresult);
+        return finalresult;
+      };
+
+      /// Creates a Stable Buffer with the default metadata and returns it.
+      public func init_metadata() : MigrationTypes.Current.Value {
+          let metadata = Vec.new<MigrationTypes.Current.MetaDatum>();
+          Vec.add(metadata, ("icrc1:fee", #Nat(switch(state._fee){
+            case(null) 10000;
+            case(?val){
+              switch(val){
+                case(#Fixed(val))val;
+                case(#Environment) 10000; //a lie as it is determined at runtime.
+              };
+            }
+          })));
+          Vec.add(metadata, ("icrc1:name", #Text(switch(state.name){
+            case(null) Principal.toText(canister);
+            case(?val) val;
+          })));
+          Vec.add(metadata, ("icrc1:symbol", #Text(switch(state.symbol){
+            case(null) Principal.toText(canister);
+            case(?val) val;
+          })));
+          Vec.add(metadata, ("icrc1:decimals", #Nat(Nat8.toNat(state.decimals))));
+
+          let finalmetadata = register_metadata(Vec.toArray(metadata));
+
+          #Map(Vec.toArray(metadata));
+      };
+
+    /// Updates ledger information such as approval limitations with the provided request.
+    /// - Parameters:
+    ///     - request: `[UpdateLedgerInfoRequest]` - A list of requests containing the updates to be applied to the ledger.
+    /// - Returns: `[Bool]` - An array of booleans indicating the success of each update request.
+    public func update_ledger_info(request: [UpdateLedgerInfoRequest]) : [Bool]{
+      
+      //todo: Security at this layer?
+
+      let results = Vec.new<Bool>();
+      for(thisItem in request.vals()){
+        switch(thisItem){
+          
+          case(#PermittedDrift(val)){state.permitted_drift := val};
+          case(#TransactionWindow(val)){state.transaction_window := val};
+          case(#Name(val)){state.name := ?val};
+          case(#Symbol(val)){state.symbol := ?val};
+          case(#Decimals(val)){state.decimals := val};
+          case(#MaxSupply(val)){state.max_supply := val};
+          case(#MaxMemo(val)){state.max_memo := val};
+          case(#MinBurnAmount(val)){state.min_burn_amount := val};
+          case(#MintingAccount(val)){state.minting_account := val};
+          case(#MaxAccounts(val)){state.max_accounts := val};
+          case(#SettleToAccounts(val)){state.settle_to_accounts := val};
+          case(#FeeCollector(val)){
+            state.fee_collector := val;
+            state.fee_collector_emitted := false;
+          };
+          case(#Metadata(val)){
+            let md = metadata();
+            let results = Map.new<Text, MetaDatum>();
+            for(thisItem in md.vals()){
+              ignore Map.put(results, Map.thash, thisItem.0, thisItem);
+            };
+            switch(val.1){
+              case(?item){
+                ignore Map.put(results, Map.thash, val.0, (val.0,item));
+              };
+              case(null){
+                ignore Map.remove(results, Map.thash, val.0);
+              };
+            };
+
+            let finalresult = Iter.toArray<MetaDatum>(Map.vals(results));
+            state.metadata := ?#Map(finalresult);
+          };
+          case(#Fee(fee)){
+            state._fee := ?fee;
+          }
+        };
+        Vec.add(results, true);
+      };
+
+      ignore init_metadata();
+      return Vec.toArray(results);
+    };
 
       /// `total_supply`
       ///
@@ -319,16 +433,7 @@ module {
 
       };
 
-      /// `update_fee_collector`
-      ///
-      /// Updates the collector account responsible for gathering transaction fees. If no account is provided, fees are burned.
-      ///
-      /// Parameters:
-      /// - `account`: An optional account that, if provided, will collect the transaction fees.
-      public func update_fee_collector(account : ?Account) : () {
-        state.fee_collector := account;
-        state.fee_collector_emitted := false;
-      };
+
 
       /// `add_local_ledger`
       ///

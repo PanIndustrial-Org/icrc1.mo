@@ -32,30 +32,7 @@ module {
 
     let ahash = MigrationTypes.Current.ahash;
 
-    // Creates a Stable Buffer with the default metadata and returns it.
-    public func init_metadata(state : MigrationTypes.Current.State, canister: Principal) : MigrationTypes.Current.Value {
-        let metadata = Vec.new<MigrationTypes.Current.MetaDatum>();
-        Vec.add(metadata, ("icrc1:fee", #Nat(switch(state._fee){
-          case(null) 10000;
-          case(?val){
-            switch(val){
-              case(#Fixed(val))val;
-              case(#Environment) 10000; //a lie as it is determined at runtime.
-            };
-          }
-        })));
-        Vec.add(metadata, ("icrc1:name", #Text(switch(state.name){
-          case(null) Principal.toText(canister);
-          case(?val) val;
-        })));
-        Vec.add(metadata, ("icrc1:symbol", #Text(switch(state.symbol){
-          case(null) Principal.toText(canister);
-          case(?val) val;
-        })));
-        Vec.add(metadata, ("icrc1:decimals", #Nat(Nat8.toNat(state.decimals))));
-
-        #Map(Vec.toArray(metadata));
-    };
+    
 
     public let default_standard : MigrationTypes.Current.SupportedStandard = {
         name = "ICRC-1";

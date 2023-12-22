@@ -128,6 +128,24 @@ module {
       url : Text;
   };
 
+  public type UpdateLedgerInfoRequest = {
+      #PermittedDrift : Nat64;
+      #TransactionWindow : Nat64;
+      #Name : Text;
+      #Symbol : Text;
+      #Decimals : Nat8;
+      #MaxSupply: ?Nat;
+      #MaxMemo : Nat;
+      #MinBurnAmount : ?Nat;
+      #MintingAccount : Account;
+      #MaxAccounts : Nat;
+      #SettleToAccounts : Nat;
+      #FeeCollector: ?Account;
+      #Metadata : (Text, ?Value);
+      #Fee: Fee;
+
+  };
+
   /// `Memo`
   ///
   /// A type alias for a blob used to store arbitrary data in a transaction memo field.
