@@ -213,14 +213,24 @@ module {
       ///
       /// Returns:
       /// `MetaData`: A record containing all metadata entries for this ledger.
-      public func metadata() : MetaData {
-         switch(state.metadata){
-          case(?val) val;
+      public func metadata() : [MetaDatum] {
+         let md = switch(state.metadata){
+          case(?val)val;
           case(null) {
             let newdata = Utils.init_metadata(state, canister);
             state.metadata := ?newdata;
-            newdata;
+            newdata
           };
+         };
+
+         switch(state.metadata){
+          case(?val){
+            switch(val){
+              case(#Map(val)) val;
+              case(_) D.trap("malformed metadata");
+            };
+          };
+          case(null){D.trap("unreachable metadata");}
          };
       };
 
@@ -334,9 +344,6 @@ module {
         Vec.size(state.local_transactions) - 1;
       };
 
-      
-
-
       /// `transfer`
       ///
       /// Processes a token transfer request according to the provided arguments, handling both regular transfers and special cases like minting and burning.
@@ -348,9 +355,32 @@ module {
       ///
       /// Returns:
       /// `TransferResult`: The result of the attempt to transfer tokens, either indicating success or providing error information.
-      public func transfer(
-          args : MigrationTypes.Current.TransferArgs,
+      ///
+      /// Warning: This function traps. we highly suggest using transfer_tokens to manage the returns and awaitstate change
+      public func transfer(caller : Principal, args : MigrationTypes.Current.TransferArgs) : async* MigrationTypes.Current.TransferResult{
+          return switch(await* transfer_tokens(caller, args, false)){
+            case(#trappable(val)) val;
+            case(#awaited(val)) val;
+            case(#err(#trappable(err))) D.trap(err);
+            case(#err(#awaited(err))) D.trap(err);
+          };  
+        };
+
+
+      /// `transfer_tokens`
+      ///
+      /// Processes a token transfer request according to the provided arguments, handling both regular transfers and special cases like minting and burning.
+      ///
+      /// Parameters:
+      /// - `args`: Details about the transfer including source, destination, amount, and other relevant data.
+      /// - `caller`: The principal of the caller initiating the transfer.
+      /// - `system_override`: A boolean that, if true, allows bypassing certain checks (reserved for system operations like cleaning up small balances).
+      ///
+      /// Returns:
+      /// `TransferResult`: The result of the attempt to transfer tokens, either indicating success or providing error information.
+      public func transfer_tokens(
           caller : Principal,
+          args : MigrationTypes.Current.TransferArgs,
           system_override : Bool
       ) : async* Star.Star<MigrationTypes.Current.TransferResult, Text> {
 
@@ -562,7 +592,28 @@ module {
       ///
       /// Returns:
       /// `TransferResult`: The result of the mint operation, either indicating success or providing error information.
-      public func mint(args : MigrationTypes.Current.Mint, caller : Principal) : async* Star.Star<MigrationTypes.Current.TransferResult, Text> {
+      ///
+      /// Warning: This function traps. we highly suggest using transfer_tokens to manage the returns and awaitstate change
+      public func mint(caller : Principal, args : MigrationTypes.Current.Mint) : async* MigrationTypes.Current.TransferResult {
+        switch( await* mint_tokens(caller, args)){
+          case(#trappable(val)) val;
+          case(#awaited(val)) val;
+          case(#err(#trappable(err))) D.trap(err);
+          case(#err(#awaited(err))) D.trap(err);
+        };
+      };
+
+      /// `mint`
+      ///
+      /// Allows the minting account to create new tokens and add them to a specified beneficiary account.
+      ///
+      /// Parameters:
+      /// - `args`: Minting arguments including the destination account and the amount to mint.
+      /// - `caller`: The principal of the caller requesting the mint operation.
+      ///
+      /// Returns:
+      /// `TransferResult`: The result of the mint operation, either indicating success or providing error information.
+      public func mint_tokens(caller : Principal, args : MigrationTypes.Current.Mint) : async* Star.Star<MigrationTypes.Current.TransferResult, Text> {
 
          
           if (caller != state.minting_account.owner) {
@@ -579,7 +630,27 @@ module {
               fee = null;
           };
           //todo: override on initial mint?
-          await* transfer(transfer_args, caller, false);
+          await* transfer_tokens(caller, transfer_args, false);
+      };
+
+      /// `burn`
+      ///
+      /// Allows an account to burn tokens by transferring them to the minting account and removing them from the total token supply.
+      ///
+      /// Parameters:
+      /// - `args`: Burning arguments including the amount to burn.
+      /// - `caller`: The principal of the caller requesting the burn operation.
+      ///
+      /// Returns:
+      /// `TransferResult`: The result of the burn operation, either indicating success or providing error information.
+      /// Warning: This function traps. we highly suggest using transfer_tokens to manage the returns and awaitstate change
+      public func burn(caller : Principal, args : MigrationTypes.Current.BurnArgs,) : async* MigrationTypes.Current.TransferResult {
+        switch( await*  burn_tokens(caller, args, false)){
+          case(#trappable(val)) val;
+          case(#awaited(val)) val;
+          case(#err(#trappable(err))) D.trap(err);
+          case(#err(#awaited(err))) D.trap(err);
+        };
       };
 
       /// `burn`
@@ -593,7 +664,7 @@ module {
       ///
       /// Returns:
       /// `TransferResult`: The result of the burn operation, either indicating success or providing error information.
-      public func burn(args : MigrationTypes.Current.BurnArgs, caller : Principal, system_override: Bool) : async* Star.Star<MigrationTypes.Current.TransferResult, Text> {
+      public func burn_tokens( caller : Principal, args : MigrationTypes.Current.BurnArgs, system_override: Bool) : async* Star.Star<MigrationTypes.Current.TransferResult, Text> {
 
 
 
@@ -603,7 +674,7 @@ module {
               fee : ?Balance = null;
           };
 
-          await* transfer(transfer_args, caller, system_override);
+          await* transfer_tokens(caller, transfer_args, system_override);
       };
 
       /// `validate_memo`
@@ -730,14 +801,14 @@ module {
         };
         label clean for(thisItem in Iter.sort(Map.entries(state.accounts), comp)){
           D.print("inspecting item" # debug_show(thisItem));
-          let result = await* transfer({
+          let result = await* transfer_tokens(thisItem.0.owner, {
             from_subaccount = thisItem.0.subaccount;
             to = state.minting_account;
             amount = thisItem.1;
             fee = null;
             memo = ?Text.encodeUtf8("clean");
             created_at_time = null;
-          }, thisItem.0.owner, true);
+          }, true);
 
           D.print("inspecting result " # debug_show(result));
 

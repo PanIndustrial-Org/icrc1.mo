@@ -76,10 +76,7 @@ shared ({ caller = _owner }) actor class Token  (
     };
 
     public shared query func icrc1_metadata() : async [ICRC1.MetaDatum] {
-        switch(icrc1().metadata()){
-          case(#Map(val)) val;
-          case(_) D.trap("malformed metadata");
-        };
+        icrc1().metadata()
     };
 
     public shared query func icrc1_total_supply() : async ICRC1.Balance {
@@ -99,30 +96,15 @@ shared ({ caller = _owner }) actor class Token  (
     };
 
     public shared ({ caller }) func icrc1_transfer(args : ICRC1.TransferArgs) : async ICRC1.TransferResult {
-        switch(await* icrc1().transfer(args, caller, false)){
-          case(#trappable(val)) val;
-          case(#awaited(val)) val;
-          case(#err(#trappable(err))) D.trap(err);
-          case(#err(#awaited(err))) D.trap(err);
-        };
+        await* icrc1().transfer(caller, args);
     };
 
     public shared ({ caller }) func mint(args : ICRC1.Mint) : async ICRC1.TransferResult {
-        switch( await* icrc1().mint(args, caller)){
-          case(#trappable(val)) val;
-          case(#awaited(val)) val;
-          case(#err(#trappable(err))) D.trap(err);
-          case(#err(#awaited(err))) D.trap(err);
-        };
+        await* icrc1().mint(caller, args);
     };
 
     public shared ({ caller }) func burn(args : ICRC1.BurnArgs) : async ICRC1.TransferResult {
-        switch( await*  icrc1().burn(args, caller, false)){
-          case(#trappable(val)) val;
-          case(#awaited(val)) val;
-          case(#err(#trappable(err))) D.trap(err);
-          case(#err(#awaited(err))) D.trap(err);
-        };
+        await*  icrc1().burn(caller, args);
     };
 
     // Deposit cycles into this canister.
