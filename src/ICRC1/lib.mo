@@ -34,6 +34,8 @@ module {
     let debug_channel = {
       announce = false;
       transfer = false;
+      accounts = false;
+      standards = false;
     };
 
     /// Exposes types from the migrations library to users of this module, allowing them to utilize these types in interacting 
@@ -457,14 +459,24 @@ module {
             };
           };
 
+          debug if(debug_channel.standards) D.print("registering a standard " # debug_show(req, Vec.toArray(current_standards)));
+
 
           let new_vec = Vec.new<MigrationTypes.Current.SupportedStandard>();
+          var bFound = false;
+
           for(thisItem in Vec.vals(current_standards)){
             if(thisItem.name == req.name){
+              debug if(debug_channel.standards) D.print("replacing standard");
+              bFound := true;
               Vec.add(new_vec, req);
             } else{
               Vec.add(new_vec, thisItem);
             }
+          };
+
+          if(bFound == false){
+            Vec.add(new_vec, req);
           };
 
           state.supported_standards := ?new_vec;
@@ -937,14 +949,14 @@ module {
     /// Iterates over the ledger accounts and transfers balances below a set threshold to the minting account.
     /// It's meant to clean up small balances and is called periodically according to a set timer.
     public func checkAccounts() : async (){
-      D.print("in check accounts");
+      debug if(debug_channel.accounts) D.print("in check accounts");
       if(Map.size(state.accounts) > state.max_accounts){
-        D.print("cleaning accounts");
+        debug if(debug_channel.accounts) D.print("cleaning accounts");
         let comp = func(a : (Account, Nat), b: (Account,Nat)) : Order.Order{
           return Nat.compare(a.1, b.1);
         };
         label clean for(thisItem in Iter.sort(Map.entries(state.accounts), comp)){
-          D.print("inspecting item" # debug_show(thisItem));
+          debug if(debug_channel.accounts) D.print("inspecting item" # debug_show(thisItem));
           let result = await* transfer_tokens(thisItem.0.owner, {
             from_subaccount = thisItem.0.subaccount;
             to = state.minting_account;
@@ -954,7 +966,7 @@ module {
             created_at_time = null;
           }, true);
 
-          D.print("inspecting result " # debug_show(result));
+          debug if(debug_channel.accounts) D.print("inspecting result " # debug_show(result));
 
           switch(result){
             case(#err(_)){
