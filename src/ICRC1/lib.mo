@@ -436,10 +436,40 @@ module {
               let base = Utils.init_standards();
               state.supported_standards := ?base;
               Vec.toArray(base);
-              
             };
           };
 
+      };
+
+      /// `register_supported_standards`
+      ///
+      /// Adds a supported standard.
+      ///
+      /// Returns:
+      /// `[SupportedStandard]`: An array of supported standards including their names and URLs.
+      public func register_supported_standards(req: MigrationTypes.Current.SupportedStandard) : Bool {
+          let current_standards = switch(state.supported_standards){
+            case(?val)val;
+            case(null){
+              let base = Utils.init_standards();
+              state.supported_standards := ?base;
+              base
+            };
+          };
+
+
+          let new_vec = Vec.new<MigrationTypes.Current.SupportedStandard>();
+          for(thisItem in Vec.vals(current_standards)){
+            if(thisItem.name == req.name){
+              Vec.add(new_vec, req);
+            } else{
+              Vec.add(new_vec, thisItem);
+            }
+          };
+
+          state.supported_standards := ?new_vec;
+
+          return true;
       };
 
 
