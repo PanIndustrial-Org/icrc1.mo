@@ -258,6 +258,7 @@ module {
         for(thisItem in md.vals()){
           ignore Map.put(results, Map.thash, thisItem.0, thisItem);
         };
+
         for(thisItem in request.vals()){
           ignore Map.put(results, Map.thash, thisItem.0, thisItem);
         };
@@ -267,7 +268,7 @@ module {
         return finalresult;
       };
 
-      /// Creates a Stable Buffer with the default metadata and returns it.
+      /// Creates a Vector with the default metadata and returns it.
       public func init_metadata() : MigrationTypes.Current.Value {
           let metadata = Vec.new<MigrationTypes.Current.MetaDatum>();
           Vec.add(metadata, ("icrc1:fee", #Nat(switch(state._fee){
@@ -299,7 +300,7 @@ module {
 
           let finalmetadata = register_metadata(Vec.toArray(metadata));
 
-          #Map(Vec.toArray(metadata));
+          #Map(finalmetadata);
       };
 
     /// Updates ledger information such as approval limitations with the provided request.

@@ -531,6 +531,20 @@ module {
                     ignore  icrc1.update_ledger_info([#SettleToAccounts(updatedSettleToAccounts)]);
                     assertAllTrue([icrc1.get_state().settle_to_accounts == updatedSettleToAccounts]);
                 }),
+                it("Can register metadata", do {
+                    let icrc1 =  get_icrc(default_token_args);
+                    D.print("testing register metadata 1 " # debug_show(icrc1.metadata()));
+                    ignore  icrc1.register_metadata([("test",#Text("test"))]);
+                    D.print("testing register metadata 2 " # debug_show(icrc1.metadata()));
+                    assertAllTrue([icrc1.metadata() == [
+                                ("icrc1:fee", #Nat(5 * (10 ** 8))),
+                                ("icrc1:name", #Text(Opt.get<Text>(default_token_args.name, "yuck"))),
+                                ("icrc1:symbol", #Text(Opt.get<Text>(default_token_args.symbol, "yuk"))),
+                                ("icrc1:decimals", #Nat(Nat8.toNat(default_token_args.decimals))),
+                                ("icrc1:logo", #Text("data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMSIgaGVpZ2h0PSIxIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9InJlZCIvPjwvc3ZnPg==")),
+                                ("test", #Text("test")),
+                            ]]);
+                }),
 
                 it(
                     "mint()",
