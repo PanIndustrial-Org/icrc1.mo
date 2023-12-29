@@ -84,6 +84,7 @@ Init args:
         name : ?Text; //name of the token
         symbol : ?Text; //symbol of the token
         decimals : Nat8; //number of decimals
+        logo : ?Text; //text based URL of the logo. Can be a data url
         fee : ?Fee; // fee setup
         minting_account : ?Account; //define a minting account, defaults to caller of canister initialization with null subaccount
         max_supply : ?Balance; //max supply for the token
@@ -175,6 +176,68 @@ Wire these functions up by including them in your environment object.
     can_transfer : ?((trx: Transaction, trxtop: ?Transaction, notification: TransferNotification) -> Result.Result<(trx: Value, trxtop: ?Value, notification: TransferNotification), Text>);
 
 ```
+
+Certainly! Here's a section explaining how to use the `update_ledger_info` function, which you can add to your `readme.md` file for the `icrc1.mo` library.
+
+---
+
+## Updating Ledger Settings with `update_ledger_info`
+
+The `update_ledger_info` function in `icrc1.mo` allows you to modify various settings of the ICRC-1 token ledger after initialization. This function is essential for updating ledger parameters such as token name, symbol, decimals, fees, and other advanced settings. Below is a guide on how to use this function effectively.
+
+### Function Prototype
+
+```motoko
+public func update_ledger_info(request: [UpdateLedgerInfoRequest]) : [Bool];
+```
+
+### Request Types
+
+`UpdateLedgerInfoRequest` is an enumerated type that covers various ledger settings you can update. Each type corresponds to a specific ledger parameter:
+
+- `#Name(Text)`: Update the token name.
+- `#Symbol(Text)`: Update the token symbol.
+- `#Decimals(Nat8)`: Update the number of decimals for token precision.
+- `#Fee(Fee)`: Update the fee structure.
+- `#MaxSupply(Nat)`: Update the maximum token supply.
+- `#MinBurnAmount(?Nat)`: Update the minimum amount for token burning.
+- `#MintingAccount(Account)`: Update the minting account.
+- `#MaxAccounts(Nat)`: Update the max accounts allowed on the canister.
+- `#SettleToAccounts(Nat)`: Update the number of accounts to reduce to if the canister goes over the max accounts.
+- `#FeeCollector(?Account)`: set a fee collector for collecting fees.
+- `#Metadata((Text, ?Value))`: Adds or removes a metadata value.
+
+
+### Usage Example
+
+Here's an example of how you can use `update_ledger_info` to update the token's name and symbol:
+
+```motoko
+import ICRC1 "mo:icrc1.mo";
+
+// Assuming `icrc1` is an instance of your ICRC1 token
+let updateRequests : [ICRC1.UpdateLedgerInfoRequest] = [
+    #Name("New Token Name"),
+    #Symbol("NTN")
+];
+
+let updateResults = icrc1.update_ledger_info(updateRequests);
+```
+
+### Return Value
+
+The function returns an array of `Bool`, indicating the success or failure of each update request. 
+
+### Important Considerations
+
+- The function processes the requests in the order they are provided.
+- It's crucial to check the returned array to ensure that all updates were successful.
+
+
+### Metadata Synchronization
+
+After updating ledger settings, it's recommended to verify that the changes are reflected in the token metadata. You can retrieve the updated metadata using the `metadata()` function and cross-verify the updates.
+
 
 ## References and other implementations
 - [demergent-labs/ICRC-1 (Typescript)](https://github.com/demergent-labs/ICRC-1)

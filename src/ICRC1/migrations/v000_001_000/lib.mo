@@ -24,6 +24,7 @@ module {
     let {
         name;
         symbol;
+        logo;
         decimals;
         fee;
         minting_account;
@@ -51,6 +52,7 @@ module {
       case(null) {{
            name = null;
           symbol = null;
+          logo = null;
           decimals = 8 : Nat8;
           fee = null;
           minting_account = null;
@@ -112,6 +114,7 @@ module {
       var accounts = accounts;
       var name = name;
       var symbol = symbol;
+      var logo = logo;
       var decimals = decimals;
       var _fee = fee;
       var max_supply = max_supply;

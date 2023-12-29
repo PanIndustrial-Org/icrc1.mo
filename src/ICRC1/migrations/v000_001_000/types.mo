@@ -37,6 +37,7 @@ module {
     var cleaning_timer : ?Nat;
     var name: ?Text;
     var symbol: ?Text;
+    var logo: ?Text;
     var decimals: Nat8;
     var _fee: ?Fee;
     var max_supply: ?Nat;
@@ -133,6 +134,7 @@ module {
       #TransactionWindow : Nat64;
       #Name : Text;
       #Symbol : Text;
+      #Logo : Text;
       #Decimals : Nat8;
       #MaxSupply: ?Nat;
       #MaxMemo : Nat;
@@ -409,6 +411,7 @@ module {
   public type InitArgs = {
       name : ?Text;
       symbol : ?Text;
+      logo : ?Text;
       decimals : Nat8;
       fee : ?Fee;
       minting_account : ?Account;

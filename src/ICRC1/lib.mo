@@ -281,11 +281,19 @@ module {
             case(null) Principal.toText(canister);
             case(?val) val;
           })));
+
           Vec.add(metadata, ("icrc1:symbol", #Text(switch(state.symbol){
             case(null) Principal.toText(canister);
             case(?val) val;
           })));
           Vec.add(metadata, ("icrc1:decimals", #Nat(Nat8.toNat(state.decimals))));
+
+          switch(state.logo){
+            case(null){};
+            case(?val){
+              Vec.add(metadata, ("icrc1:logo", #Text(val)));
+            };
+          };
 
           let finalmetadata = register_metadata(Vec.toArray(metadata));
 
@@ -308,6 +316,7 @@ module {
           case(#TransactionWindow(val)){state.transaction_window := val};
           case(#Name(val)){state.name := ?val};
           case(#Symbol(val)){state.symbol := ?val};
+          case(#Logo(val)){state.logo := ?val};
           case(#Decimals(val)){state.decimals := val};
           case(#MaxSupply(val)){state.max_supply := val};
           case(#MaxMemo(val)){state.max_memo := val};

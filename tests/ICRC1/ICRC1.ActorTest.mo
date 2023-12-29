@@ -143,6 +143,7 @@ module {
         let default_token_args : T.Current.InitArgs = {
             name = ?"Under-Collaterised Lending Tokens";
             symbol = ?"UCLTs";
+            logo = ?"data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMSIgaGVpZ2h0PSIxIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9InJlZCIvPjwvc3ZnPg==";
             decimals = 8;
             fee = ?#Fixed(base_fee);
             max_supply = ?(max_supply);
@@ -265,6 +266,22 @@ module {
             return #awaited(#Map(Vector.toArray(results)), trxtop, {notification with
               amount = 2;
             });
+        };
+
+        // Sample settings for update tests
+        let updatedName = "Updated Name";
+        let updatedLogo = "newlogo";
+        let updatedSymbol = "UPD";
+        let updatedDecimals : Nat8 = 10;
+        let updatedFee : MigrationTypes.Current.Fee = #Fixed(2000);
+        let updatedMaxSupply : Nat = 500000000;
+        let updatedMinBurnAmount : Nat = 500;
+        let updatedMaxAccounts : Nat = 10000;
+        let updatedSettleToAccounts : Nat = 8000;
+
+        // Helper function to check if metadata contains a specific key-value pair
+        func metadataContains(metadata: [ICRC1.MetaDatum], key: Text, expectedValue: ICRC1.Value) : Bool {
+            Array.find<ICRC1.MetaDatum>(metadata, func(item : ICRC1.MetaDatum) { item.0 == key and item.1 == expectedValue }) != null
         };
 
         return describe(
@@ -422,9 +439,10 @@ module {
                 it(
                     "metadata()",
                     do {
-                        D.print("testing metadata");
+                        
 
                         let icrc1 =  get_icrc(default_token_args);
+                        D.print("testing metadata" # debug_show(icrc1.metadata()));
 
                         assertTrue(
                             icrc1.metadata() == [
@@ -432,6 +450,7 @@ module {
                                 ("icrc1:name", #Text(Opt.get<Text>(default_token_args.name, "yuck"))),
                                 ("icrc1:symbol", #Text(Opt.get<Text>(default_token_args.symbol, "yuk"))),
                                 ("icrc1:decimals", #Nat(Nat8.toNat(default_token_args.decimals))),
+                                ("icrc1:logo", #Text("data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMSIgaGVpZ2h0PSIxIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9InJlZCIvPjwvc3ZnPg=="))
                             ],
                         );
                     },
@@ -452,6 +471,66 @@ module {
                         );
                     },
                 ),
+                it("Update Token Name", do {
+                    let icrc1 =  get_icrc(default_token_args);
+                    ignore icrc1.update_ledger_info([#Name(updatedName)]);
+                    assertAllTrue([
+                    icrc1.name() == updatedName,
+                    metadataContains(icrc1.metadata(), "icrc1:name", #Text(updatedName))]);
+                }),
+                it("Update Token Logo", do {
+                    let icrc1 =  get_icrc(default_token_args);
+                    ignore icrc1.update_ledger_info([#Logo(updatedLogo)]);
+                    assertAllTrue([
+                    icrc1.get_state().logo == ?updatedLogo,
+                    metadataContains(icrc1.metadata(), "icrc1:logo", #Text(updatedLogo))]);
+                }),
+
+                it("Update Token Symbol", do {
+                    let icrc1 =  get_icrc(default_token_args);
+                    ignore icrc1.update_ledger_info([#Symbol(updatedSymbol)]);
+                    assertAllTrue([
+                      icrc1.symbol() == updatedSymbol,
+                    metadataContains(icrc1.metadata(), "icrc1:symbol", #Text(updatedSymbol))]);
+                }),
+
+                it("Update Token Decimals", do {
+                    let icrc1 =  get_icrc(default_token_args);
+                    ignore icrc1.update_ledger_info([#Decimals(updatedDecimals)]);
+                    assertAllTrue([icrc1.decimals() == updatedDecimals, 
+                    metadataContains(icrc1.metadata(), "icrc1:decimals", #Nat(Nat8.toNat(updatedDecimals)))]);
+                }),
+
+                it("Update Transfer Fee", do {
+                    let icrc1 =  get_icrc(default_token_args);
+                    ignore icrc1.update_ledger_info([#Fee(updatedFee)]);
+                    assertAllTrue([icrc1.get_state()._fee == ?#Fixed(2000),
+                    metadataContains(icrc1.metadata(), "icrc1:fee", #Nat(2000))]);
+                }),
+
+                it("Update Max Supply", do {
+                    let icrc1 =  get_icrc(default_token_args);
+                    ignore icrc1.update_ledger_info([#MaxSupply(?updatedMaxSupply)]);
+                    assertAllTrue([icrc1.max_supply() == ?updatedMaxSupply]);
+                }),
+
+                it("Update Min Burn Amount", do {
+                    let icrc1 =  get_icrc(default_token_args);
+                    ignore icrc1.update_ledger_info([#MinBurnAmount(?updatedMinBurnAmount)]);
+                    assertAllTrue([icrc1.get_state().min_burn_amount == ?updatedMinBurnAmount]);
+                }),
+
+                it("Update Max Accounts", do {
+                    let icrc1 =  get_icrc(default_token_args);
+                    ignore icrc1.update_ledger_info([#MaxAccounts(updatedMaxAccounts)]);
+                    assertAllTrue([icrc1.get_state().max_accounts == updatedMaxAccounts]);
+                }),
+
+                it("Update Settle To Accounts", do {
+                    let icrc1 =  get_icrc(default_token_args);
+                    ignore  icrc1.update_ledger_info([#SettleToAccounts(updatedSettleToAccounts)]);
+                    assertAllTrue([icrc1.get_state().settle_to_accounts == updatedSettleToAccounts]);
+                }),
 
                 it(
                     "mint()",
@@ -1120,6 +1199,7 @@ module {
     let negativeMaxSupplyArgs : T.Current.InitArgs = {
       name = ?"Invalid Token";
       symbol = ?"INV";
+      logo = ?"data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMSIgaGVpZ2h0PSIxIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9InJlZCIvPjwvc3ZnPg==";
       decimals = 8;
       fee = ?#Fixed(5 * (10 ** 8));
       max_supply = ?(100);
