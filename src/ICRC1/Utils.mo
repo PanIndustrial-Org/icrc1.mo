@@ -235,8 +235,20 @@ module {
         };
         switch (foundTop) {
           case (#Map(a_map)) {
-            let vecMap = Vec.fromArray<(Text, Value)>(a_map);
-            Vec.add<(Text, Value)>(vecMap, (key, val));
+            let vecMap = Vec.new<(Text, Value)>();
+            var bFound = false;
+            for(thisItem in a_map.vals()){
+              if(key == thisItem.0){
+                Vec.add<(Text, Value)>(vecMap, (key, val));
+                bFound := true;
+              } else {
+                Vec.add<(Text, Value)>(vecMap, thisItem);
+              };
+              
+            };
+            if(bFound == false){
+              Vec.add<(Text, Value)>(vecMap, (key, val));
+            };
             return #ok(#Map(Vec.toArray(vecMap)));
           };
           case (_) return #err("bad map");

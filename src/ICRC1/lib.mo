@@ -90,6 +90,7 @@ module {
 
     //convienence variables to make code more readable
     public let Map = MigrationTypes.Current.Map;
+    public let Set = MigrationTypes.Current.Set;
     public let Vector = MigrationTypes.Current.Vector;
     public let AccountHelper = Account;
     public let UtilsHelper = Utils;
@@ -634,7 +635,6 @@ module {
           // process transaction
           switch(notification.kind){
               case(#mint){
-                  
                   Utils.mint_balance(state, to, amount);
               };
               case(#burn){
@@ -644,42 +644,44 @@ module {
                   Utils.transfer_balance(state, notification);
 
                   // burn fee
-                  switch(state.fee_collector){
-                    case(null){
-                      Utils.burn_balance(state, from, final_fee);
-                    };
-                    case(?val){
-                       
-                      if(final_fee > 0){
-                        if(state.fee_collector_emitted){
-                          finaltxtop_var := switch(Utils.insert_map(finaltxtop, "fee_collector_block", #Nat(state.fee_collector_block))){
-                            case(#ok(val)) ?val;
-                            case(#err(err)) return if(bAwaited){
-                              #err(#awaited("unreachable map addition"));
-                            } else {
-                              #err(#trappable("unreachable map addition"));
+                  if(final_fee > 0){
+                    switch(state.fee_collector){
+                      case(null){
+                        Utils.burn_balance(state, from, final_fee);
+                      };
+                      case(?val){
+                        
+                        if(final_fee > 0){
+                          if(state.fee_collector_emitted){
+                            finaltxtop_var := switch(Utils.insert_map(finaltxtop, "fee_collector_block", #Nat(state.fee_collector_block))){
+                              case(#ok(val)) ?val;
+                              case(#err(err)) return if(bAwaited){
+                                #err(#awaited("unreachable map addition"));
+                              } else {
+                                #err(#trappable("unreachable map addition"));
+                              };
                             };
-                          };
-                        } else {
-                          finaltxtop_var := switch(Utils.insert_map(finaltxtop, "fee_collector", Utils.accountToValue(val))){
-                            case(#ok(val)) ?val;
-                            case(#err(err)) return if(bAwaited){
-                              #err(#awaited("unreachable map addition"));
-                            } else {
-                              #err(#trappable("unreachable map addition"));
+                          } else {
+                            finaltxtop_var := switch(Utils.insert_map(finaltxtop, "fee_collector", Utils.accountToValue(val))){
+                              case(#ok(val)) ?val;
+                              case(#err(err)) return if(bAwaited){
+                                #err(#awaited("unreachable map addition"));
+                              } else {
+                                #err(#trappable("unreachable map addition"));
+                              };
                             };
                           };
                         };
-                      };
 
-                      Utils.transfer_balance(state,{
-                        notification with
-                        kind = #transfer;
-                        to = val;
-                        amount = final_fee;
-                      });
+                        Utils.transfer_balance(state,{
+                          notification with
+                          kind = #transfer;
+                          to = val;
+                          amount = final_fee;
+                        });
+                      };
                     };
-                  }
+                  };
               };
           };
 
