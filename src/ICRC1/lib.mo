@@ -586,7 +586,7 @@ module {
 
           var bAwaited = false;
 
-          let (finaltx, finaltxtop, notification) : (Value, ?Value, TransferRequest) = switch(environment.can_transfer){
+          let (finaltx, finaltxtop, notification) : (Value, ?Value, TransactionRequestNotification) = switch(environment.can_transfer){
             case(null){
               (txMap, ?txTopMap, pre_notification);
             };
@@ -603,8 +603,10 @@ module {
               switch(await* remote_func(txMap, ?txTopMap, pre_notification)){
                 case(#trappable(val)) val;
                 case(#awaited(val)){
+
+                  let override_fee = val.2.calculated_fee;
                   //revalidate 
-                  switch (validate_request(val.2, calculated_fee, system_override)) {
+                  switch (validate_request(val.2, override_fee, system_override)) {
                       case (#err(errorType)) {
                           return #awaited(#Err(errorType));
                       };
@@ -627,6 +629,7 @@ module {
           D.print("Moving tokens");
 
           var finaltxtop_var = finaltxtop;
+          let final_fee = notification.calculated_fee;
 
           // process transaction
           switch(notification.kind){
@@ -643,11 +646,11 @@ module {
                   // burn fee
                   switch(state.fee_collector){
                     case(null){
-                      Utils.burn_balance(state, from, calculated_fee);
+                      Utils.burn_balance(state, from, final_fee);
                     };
                     case(?val){
                        
-                      if(calculated_fee > 0){
+                      if(final_fee > 0){
                         if(state.fee_collector_emitted){
                           finaltxtop_var := switch(Utils.insert_map(finaltxtop, "fee_collector_block", #Nat(state.fee_collector_block))){
                             case(#ok(val)) ?val;
@@ -673,7 +676,7 @@ module {
                         notification with
                         kind = #transfer;
                         to = val;
-                        amount = calculated_fee;
+                        amount = final_fee;
                       });
                     };
                   }
