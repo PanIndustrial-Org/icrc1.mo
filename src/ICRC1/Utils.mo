@@ -80,16 +80,10 @@ module {
     };
 
     public func get_time64(environment: Environment) : Nat64{
-      //D.print("in get_time64");
+      
       return (switch(environment.get_time){
-        case(null){
-          //D.print("returning time from time");
-          Time.now();
-        };
-        case(?get_time){
-          //D.print("returning time env" # debug_show(get_time()));
-          get_time();
-        };
+        case(null)  Time.now();
+        case(?get_time) get_time();
       }) 
       |> Int.abs(_) 
       |> Nat64.fromNat(_);

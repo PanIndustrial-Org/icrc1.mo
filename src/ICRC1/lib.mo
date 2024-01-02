@@ -36,6 +36,7 @@ module {
       transfer = false;
       accounts = false;
       standards = false;
+      validation = false;
     };
 
     /// Exposes types from the migrations library to users of this module, allowing them to utilize these types in interacting 
@@ -542,7 +543,7 @@ module {
           system_override : Bool
       ) : async* Star.Star<MigrationTypes.Current.TransferResult, Text> {
 
-          D.print("in transfer");
+          debug if (debug_channel.announce) D.print("in transfer");
 
           let from = {
               owner = caller;
@@ -569,7 +570,7 @@ module {
               0;
             };
           };
-          D.print("validating");
+          debug if (debug_channel.transfer) D.print("validating");
           switch (validate_request(tx_req, calculated_fee, system_override)) {
               case (#err(errorType)) {
                   return #trappable(#Err(errorType));
@@ -627,7 +628,7 @@ module {
 
           let { amount; to; } = notification;
 
-          D.print("Moving tokens");
+          debug if (debug_channel.transfer)D.print("Moving tokens");
 
           var finaltxtop_var = finaltxtop;
           let final_fee = notification.calculated_fee;
@@ -717,16 +718,17 @@ module {
           //add trx for dedupe
           let trxhash = Blob.fromArray(RepIndy.hash_val(finaltx));
 
-          D.print("attempting to add recent" # debug_show(trxhash, finaltx));
+          debug if (debug_channel.transfer)D.print("attempting to add recent" # debug_show(trxhash, finaltx));
 
           ignore Map.put<Blob, (Nat64, Nat)>(state.recent_transactions, Map.bhash, trxhash, (get_time64(), index));
 
+          debug if (debug_channel.transfer)D.print("attempting to call listeners" # debug_show(Vec.size(token_transferred_listeners)));
           for(thisItem in Vec.vals(token_transferred_listeners)){
             thisItem.1(tx_final, index);
           };
 
 
-          D.print("cleaning");
+          debug if (debug_channel.transfer)D.print("cleaning");
           cleanUpRecents();
           switch(state.cleaning_timer){
             case(null){ //only need one active timer
@@ -736,7 +738,7 @@ module {
             case(_){}
           };
 
-          D.print("done transfer");
+          debug if (debug_channel.transfer)D.print("done transfer");
           if(bAwaited){
             #awaited(#Ok(index));
           } else {
@@ -867,9 +869,9 @@ module {
       /// Returns:
       /// `Bool`: True if the transaction is considered too old, false otherwise.
       public func is_too_old(created_at_time : Nat64) : Bool {
-          D.print("testing is_too_old");
+          debug if (debug_channel.validation) D.print("testing is_too_old");
           let current_time : Nat64  = get_time64();
-          D.print("current time is" # debug_show(current_time,state.transaction_window ,state.permitted_drift ));
+          debug if (debug_channel.validation) D.print("current time is" # debug_show(current_time,state.transaction_window ,state.permitted_drift ));
           let lower_bound = current_time - state.transaction_window - state.permitted_drift;
           created_at_time < lower_bound;
       };
@@ -884,7 +886,7 @@ module {
       /// Returns:
       /// `Bool`: True if the timestamp is in the future, false otherwise.
       public func is_in_future(created_at_time : Nat64) : Bool {
-          D.print("testing is_in_future" # debug_show(created_at_time, state.permitted_drift, get_time64()));
+          debug if (debug_channel.validation) D.print("testing is_in_future" # debug_show(created_at_time, state.permitted_drift, get_time64()));
           let current_time : Nat64  = get_time64();
           let upper_bound = current_time + state.permitted_drift;
           created_at_time > upper_bound;
@@ -924,7 +926,7 @@ module {
     public func deduplicate(tx_req : MigrationTypes.Current.TransactionRequest) : Result.Result<(), Nat> {
 
       let trxhash = Blob.fromArray(RepIndy.hash_val(transfer_req_to_value(tx_req)));
-      D.print("attempting to deduplicate" # debug_show(trxhash, tx_req));
+      debug if (debug_channel.validation) D.print("attempting to deduplicate" # debug_show(trxhash, tx_req));
 
       switch(find_dupe(trxhash)){
         case(?found){
@@ -1077,7 +1079,7 @@ module {
         system_override : Bool
     ) : Result.Result<(), MigrationTypes.Current.TransferError> {
 
-        D.print("in validate_request");
+        debug if (debug_channel.validation) D.print("in validate_request");
 
         if (tx_req.from == tx_req.to) {
             return #err(
@@ -1106,7 +1108,7 @@ module {
             );
         };
 
-        D.print("Checking memo");
+        debug if (debug_channel.validation) D.print("Checking memo");
 
         if (not validate_memo(tx_req.memo)) {
             return #err(
@@ -1126,10 +1128,10 @@ module {
             );
         };
 
-        D.print("starting filter");
+        debug if (debug_channel.validation) D.print("starting filter");
         label filter switch (tx_req.kind) {
             case (#transfer) {
-                D.print("validating fee");
+                debug if (debug_channel.validation) D.print("validating fee");
                 if (not validate_fee( calculated_fee, tx_req.fee)) {
                     return #err(
                         #BadFee {
@@ -1143,13 +1145,13 @@ module {
                   case(?val) val;
                 };
 
-                D.print("getting balance");
+                debug if (debug_channel.validation) D.print("getting balance");
                 let balance : MigrationTypes.Current.Balance = Utils.get_balance(
                     state.accounts,
                     tx_req.from,
                 );
 
-                D.print("found balance" # debug_show(balance));
+                debug if (debug_channel.validation) D.print("found balance" # debug_show(balance));
 
                 if (tx_req.amount + final_fee > balance) {
                     return #err(#InsufficientFunds { balance });
@@ -1195,7 +1197,7 @@ module {
             };
         };
 
-        D.print("testing Time");
+        debug if (debug_channel.validation) D.print("testing Time");
         switch (tx_req.created_at_time) {
             case (null) {};
             case (?created_at_time) {
@@ -1226,7 +1228,7 @@ module {
             case (_) {};
         };
 
-        D.print("done validate");
+        debug if (debug_channel.validation) D.print("done validate");
         #ok();
     };
 
