@@ -42,7 +42,6 @@ stable var icrc1_migration_state = ICRC1.init(ICRC1.initialState() , #v0_1_0(#id
       get_time = ?Time.now;
       get_fee = null;
       add_ledger_transaction = icrc3().add_record; //define and instantiate icrc3 as indicated in the icrc3-mo package
-      can_transfer = null;
     };
   };
 
@@ -110,10 +109,7 @@ public type Environment = {
     get_time : ?(() -> Int); // override system time, useful for testing
     get_fee : ?((State, Environment, TransferArgs) -> Balance); //assign a dynamic fee at runtime
     add_ledger_transaction: ?((Value, ?Value) -> Nat); //called when a transaction needs to be added to the ledger.  Used to provide compatibility with ICRC3 based transaction logs. When used in conjunction with ICRC3.mo you will get an ICRC3 compatible transaction log complete with self archiving.
-    can_transfer : ?{ //intercept transfers and modify them or cancel them at runtime. Note: If you update the notification you must also update the trx and trxtop manually
-      #Sync : ((trx: Value, trxtop: ?Value, notification: TransactionRequest) -> Result.Result<(trx: Value, trxtop: ?Value, notification: TransactionRequest), Text>);
-      #Async : ((trx: Value, trxtop: ?Value, notification: TransactionRequest) -> async* Star.Star<(trx: Value, trxtop: ?Value, notification: TransactionRequest), Text>);
-    };
+    
   };
 ```
 ## Deduplication
@@ -170,16 +166,15 @@ The user may assign a function to intercept each transaction type just before it
 
 By returning an #err from these functions you will effectively cancel the transaction and the caller will receive back a #GenericError for that request with the message you provide.
 
-Wire these functions up by including them in your environment object.
-
-```
-    can_transfer : ?((trx: Transaction, trxtop: ?Transaction, notification: TransferNotification) -> Result.Result<(trx: Value, trxtop: ?Value, notification: TransferNotification), Text>);
+Wire these functions up by including them in the call to transfer_tokens as the last parameter.
 
 ```
 
-Certainly! Here's a section explaining how to use the `update_ledger_info` function, which you can add to your `readme.md` file for the `icrc1.mo` library.
-
----
+ can_transfer : ?{ //intercept transfers and modify them or cancel them at runtime. Note: If you update the notification you must also update the trx and trxtop manually
+      #Sync : ((trx: Value, trxtop: ?Value, notification: TransactionRequest) -> Result.Result<(trx: Value, trxtop: ?Value, notification: TransactionRequest), Text>);
+      #Async : ((trx: Value, trxtop: ?Value, notification: TransactionRequest) -> async* Star.Star<(trx: Value, trxtop: ?Value, notification: TransactionRequest), Text>);
+    };
+```
 
 ## Updating Ledger Settings with `update_ledger_info`
 

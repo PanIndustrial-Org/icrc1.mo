@@ -71,6 +71,7 @@ module {
     public type MetaDatum =           MigrationTypes.Current.MetaDatum;
     public type TxLog =               MigrationTypes.Current.TxLog;
     public type TxIndex =             MigrationTypes.Current.TxIndex;
+    public type CanTransfer =             MigrationTypes.Current.CanTransfer;
 
     public type UpdateLedgerInfoRequest = MigrationTypes.Current.UpdateLedgerInfoRequest;
 
@@ -517,7 +518,7 @@ module {
       ///
       /// Warning: This function traps. we highly suggest using transfer_tokens to manage the returns and awaitstate change
       public func transfer(caller : Principal, args : MigrationTypes.Current.TransferArgs) : async* MigrationTypes.Current.TransferResult{
-          return switch(await* transfer_tokens(caller, args, false)){
+          return switch(await* transfer_tokens(caller, args, false, null)){
             case(#trappable(val)) val;
             case(#awaited(val)) val;
             case(#err(#trappable(err))) D.trap(err);
@@ -540,7 +541,8 @@ module {
       public func transfer_tokens(
           caller : Principal,
           args : MigrationTypes.Current.TransferArgs,
-          system_override : Bool
+          system_override : Bool,
+          can_transfer : CanTransfer
       ) : async* Star.Star<MigrationTypes.Current.TransferResult, Text> {
 
           debug if (debug_channel.announce) D.print("in transfer");
@@ -551,12 +553,12 @@ module {
           };
 
           let tx_kind = if (account_eq(from, state.minting_account)) {
-                #mint;
-              } else if (account_eq(args.to, state.minting_account)) {
-                  #burn;
-              } else {
-                  #transfer;
-              };
+            #mint;
+          } else if (account_eq(args.to, state.minting_account)) {
+            #burn;
+          } else {
+            #transfer;
+          };
 
           let tx_req = Utils.create_transfer_req(args, caller, tx_kind);
 
@@ -570,6 +572,7 @@ module {
               0;
             };
           };
+
           debug if (debug_channel.transfer) D.print("validating");
           switch (validate_request(tx_req, calculated_fee, system_override)) {
               case (#err(errorType)) {
@@ -588,41 +591,24 @@ module {
 
           var bAwaited = false;
 
-          let (finaltx, finaltxtop, notification) : (Value, ?Value, TransactionRequestNotification) = switch(environment.can_transfer){
-            case(null){
-              (txMap, ?txTopMap, pre_notification);
-            };
-            case(?#Sync(remote_func)){
-              switch(remote_func(txMap, ?txTopMap, pre_notification)){
-                case(#ok(val)) val;
-                case(#err(tx)){
-                  return #trappable(#Err(#GenericError({error_code= 6453; message=tx})));
-                };
-              };
-            };
-            case(?#Async(remote_func)){
+          let (finaltx, finaltxtop, notification) : (Value, ?Value, TransactionRequestNotification) = switch(await* handleCanTransfer(txMap, ?txTopMap, pre_notification, can_transfer)){
+            case(#trappable(val)) val;
+            case(#awaited(val)){
               bAwaited := true;
-              switch(await* remote_func(txMap, ?txTopMap, pre_notification)){
-                case(#trappable(val)) val;
-                case(#awaited(val)){
-
-                  let override_fee = val.2.calculated_fee;
-                  //revalidate 
-                  switch (validate_request(val.2, override_fee, system_override)) {
-                      case (#err(errorType)) {
-                          return #awaited(#Err(errorType));
-                      };
-                      case (#ok(_)) {};
-                  };
-                  val;
+              debug if (debug_channel.transfer) D.print("handleCanTransfer awaited something " # debug_show(val));
+              let override_fee = val.2.calculated_fee;
+              //revalidate 
+              switch (validate_request(val.2, override_fee, system_override)) {
+                case (#err(errorType)) {
+                    return #awaited(#Err(errorType));
                 };
-                case(#err(#awaited(tx))){
-                  return #awaited(#Err(#GenericError({error_code= 6453; message=tx})));
-                };
-                case(#err(#trappable(tx))){
-                  return #trappable(#Err(#GenericError({error_code= 6453; message=tx})));
-                };
+                case (#ok(_)) {};
               };
+              val;
+            };
+            case(#err(val)){
+              debug if (debug_channel.transfer) D.print("handleCanTransfer gave us an error of " # debug_show(val));
+              return val;
             };
           };
 
@@ -632,6 +618,8 @@ module {
 
           var finaltxtop_var = finaltxtop;
           let final_fee = notification.calculated_fee;
+
+
 
           // process transaction
           switch(notification.kind){
@@ -651,35 +639,16 @@ module {
                         Utils.burn_balance(state, from, final_fee);
                       };
                       case(?val){
-                        
-                        if(final_fee > 0){
-                          if(state.fee_collector_emitted){
-                            finaltxtop_var := switch(Utils.insert_map(finaltxtop, "fee_collector_block", #Nat(state.fee_collector_block))){
-                              case(#ok(val)) ?val;
-                              case(#err(err)) return if(bAwaited){
-                                #err(#awaited("unreachable map addition"));
-                              } else {
-                                #err(#trappable("unreachable map addition"));
-                              };
-                            };
-                          } else {
-                            finaltxtop_var := switch(Utils.insert_map(finaltxtop, "fee_collector", Utils.accountToValue(val))){
-                              case(#ok(val)) ?val;
-                              case(#err(err)) return if(bAwaited){
-                                #err(#awaited("unreachable map addition"));
-                              } else {
-                                #err(#trappable("unreachable map addition"));
-                              };
+                        finaltxtop_var := switch(handleFeeCollector(final_fee, val, notification, finaltxtop)){
+                          case(#ok(val)) val;
+                          case(#err(err)){
+                            if(bAwaited){
+                              return #awaited(#Err(#GenericError({error_code= 6453; message=err})));
+                            } else {
+                              return #trappable(#Err(#GenericError({error_code= 6453; message=err})));
                             };
                           };
                         };
-
-                        Utils.transfer_balance(state,{
-                          notification with
-                          kind = #transfer;
-                          to = val;
-                          amount = final_fee;
-                        });
                       };
                     };
                   };
@@ -689,31 +658,12 @@ module {
           
 
           // store transaction
-          let index = switch(environment.add_ledger_transaction){
-            case(?add_ledger_transaction){
-              add_ledger_transaction(finaltx, finaltxtop_var);
-            };
-            case(null){
-              let tx = Utils.req_to_tx(notification, Vec.size(state.local_transactions));
-
-              add_local_ledger(tx);
-            }
-          };
+          let index = handleAddRecordToLedger(finaltx, finaltxtop_var, notification);
 
           let tx_final = Utils.req_to_tx(notification, index);
 
-          switch(state.fee_collector){
-            case(?val){
-              if(calculated_fee > 0){
-                if(state.fee_collector_emitted){} else {
-                  state.fee_collector_block := index;
-                  state.fee_collector_emitted := true;
-                };
-              };
-            };
-            case(null){
-            };
-          };
+          if(calculated_fee > 0) setFeeCollectorBlock(index);
+          
 
           //add trx for dedupe
           let trxhash = Blob.fromArray(RepIndy.hash_val(finaltx));
@@ -722,27 +672,189 @@ module {
 
           ignore Map.put<Blob, (Nat64, Nat)>(state.recent_transactions, Map.bhash, trxhash, (get_time64(), index));
 
-          debug if (debug_channel.transfer)D.print("attempting to call listeners" # debug_show(Vec.size(token_transferred_listeners)));
-          for(thisItem in Vec.vals(token_transferred_listeners)){
-            thisItem.1(tx_final, index);
-          };
+          handleBroadcastToListeners(tx_final, index);
 
 
-          debug if (debug_channel.transfer)D.print("cleaning");
-          cleanUpRecents();
-          switch(state.cleaning_timer){
-            case(null){ //only need one active timer
-              debug if(debug_channel.transfer) D.print("setting clean up timer");
-              state.cleaning_timer := ?Timer.setTimer(#seconds(0), checkAccounts);
-            };
-            case(_){}
-          };
+          handleCleanUp();
 
           debug if (debug_channel.transfer)D.print("done transfer");
           if(bAwaited){
             #awaited(#Ok(index));
           } else {
             #trappable(#Ok(index));
+          };
+      };
+
+      /// Notifies all registered listeners about a token transfer event.
+      ///
+      /// Parameters:
+      /// - `tx_final`: The final transaction that occurred on the ledger.
+      /// - `index`: The index of the final transaction in the ledger.
+      ///
+      /// Returns:
+      /// - Nothing (unit type).
+      ///
+      /// Remarks:
+      /// - The function goes through the vector of registered token-transferred listeners and invokes their callback functions with the transaction details.
+      public func handleBroadcastToListeners(tx_final : Transaction, index: Nat) : (){
+        debug if (debug_channel.transfer)D.print("attempting to call listeners" # debug_show(Vec.size(token_transferred_listeners)));
+        for(thisItem in Vec.vals(token_transferred_listeners)){
+          thisItem.1(tx_final, index);
+        };
+      };
+
+
+      /// Manages the transfer of the transaction fee to the designated fee collector account.
+      ///
+      /// Parameters:
+      /// - `final_fee`: The fee to be transferred.
+      /// - `fee_collector`: The account information of the fee collector.
+      /// - `notification`: Notification containing the information about the transfer request and calculated fee.
+      /// - `txtop`: Optional top layer information for transaction logging.
+      ///
+      /// Returns:
+      /// - `Result<?Value, Text>`: The result of the fee transfer operation containing updated top layer information or an error message.
+      ///
+      /// Remarks:
+      /// - If fee collection is enabled, this function is responsible for transferring the fee and updating the transaction information with fee collector details.
+      public func handleFeeCollector(final_fee: Nat, fee_collector : Account, notification: TransactionRequestNotification, txtop : ?Value) : Result.Result<?Value, Text> {
+        var finaltxtop_var = txtop;
+        if(final_fee > 0){
+          if(state.fee_collector_emitted){
+            finaltxtop_var := switch(Utils.insert_map(finaltxtop_var, "fee_collector_block", #Nat(state.fee_collector_block))){
+              case(#ok(val)) ?val;
+              case(#err(err)) return #err("unreachable map addition");
+            };
+          } else {
+            finaltxtop_var := switch(Utils.insert_map(finaltxtop_var, "fee_collector", Utils.accountToValue(fee_collector))){
+              case(#ok(val)) ?val;
+              case(#err(err)) return #err("unreachable map addition");
+            };
+          };
+
+          Utils.transfer_balance(state,{
+            notification with
+            kind = #transfer;
+            to = fee_collector;
+            amount = final_fee;
+          });
+        };
+
+        #ok(finaltxtop_var);
+      };
+
+      /// Adds a transfer record to the ledger.
+      ///
+      /// Parameters:
+      /// - `finaltx`: The transaction value to be added.
+      /// - `finaltxtop`: Optional top layer data for the transaction log.
+      /// - `notification`: The notification containing final transfer details.
+      ///
+      /// Returns:
+      /// - `Nat`: The index of the added transaction record.
+      ///
+      /// Remarks:
+      /// - Based on the environment settings, the transfer may be added to a local transaction log or processed through an external function for ledger recording.
+      public func handleAddRecordToLedger(finaltx : Value, finaltxtop: ?Value, notification: TransactionRequestNotification) : Nat{
+        switch(environment.add_ledger_transaction){
+            case(?add_ledger_transaction){
+              add_ledger_transaction(finaltx, finaltxtop);
+            };
+            case(null){
+              let tx = Utils.req_to_tx(notification, Vec.size(state.local_transactions));
+              add_local_ledger(tx);
+            }
+          };
+      };
+
+      /// Sets the block index for the fee collector, ensuring it is set only once.
+      ///
+      /// Parameters:
+      /// - `index`: The index of the transaction block related to fee collection.
+      ///
+      /// Returns:
+      /// - Nothing (unit type).
+      ///
+      /// Remarks:
+      /// - This function is used when fee collection pertains to a specific block transaction, recording its occurrence.
+      public func setFeeCollectorBlock(index : Nat){
+        switch(state.fee_collector){
+            case(?val){
+              
+              if(state.fee_collector_emitted){} else {
+                state.fee_collector_block := index;
+                state.fee_collector_emitted := true;
+              };
+              
+            };
+            case(null){
+            };
+          };
+      };
+
+      /// Checks if the ledger has too many accounts and triggers an account cleanup if necessary.
+      ///
+      /// Returns:
+      /// - Nothing (unit type).
+      ///
+      /// Remarks:
+      /// - If the ledger grows beyond 'max_accounts', older small balances are transferred to the minting account to tidy up the ledger.
+      public func handleCleanUp(){
+        debug if (debug_channel.transfer)D.print("cleaning");
+        cleanUpRecents();
+        switch(state.cleaning_timer){
+          case(null){ //only need one active timer
+            debug if(debug_channel.transfer) D.print("setting clean up timer");
+            state.cleaning_timer := ?Timer.setTimer(#seconds(0), checkAccounts);
+          };
+          case(_){}
+        };
+      };
+
+      /// Evaluates additional transfer validation rules if provided.
+      ///
+      /// Parameters:
+      /// - `txMap`: Value representing the transfer.
+      /// - `txTopMap`: Optional additional data for the transfer log.
+      /// - `pre_notification`: The pre-transfer notification containing initial transfer information.
+      /// - `canTransfer`: Optional rules to validate the transfer further.
+      ///
+      /// Returns:
+      /// - A star-patterned response that may either contain the updated data or errors.
+      ///
+      /// Possible Responses:
+      /// - Returns the original data if no additional rules are provided.
+      /// - On calling a synchronous validation function, returns the result or any encountered error.
+      /// - On calling an asynchronous validation function, either returns the result or goes into a waiting state for further handling.
+      public func handleCanTransfer(txMap : Value, txTopMap: ?Value, pre_notification: TransactionRequestNotification, canTransfer : CanTransfer) : async* Star.Star<(Value, ?Value,  TransactionRequestNotification), MigrationTypes.Current.TransferResult> {
+        debug if (debug_channel.transfer) D.print("in handleCanTransfer awaited something " );
+        switch(canTransfer){
+            case(null){
+              #trappable((txMap, txTopMap, pre_notification));
+            };
+            case(?#Sync(remote_func)){
+              switch(remote_func(txMap, txTopMap, pre_notification)){
+                case(#ok(val)) return #trappable((val.0,val.1,val.2));
+                case(#err(tx)) return #err(#trappable(#Err(#GenericError({error_code= 6453; message=tx}))));
+              };
+            };
+            case(?#Async(remote_func)){
+              debug if (debug_channel.transfer) D.print("in handleCanTransfer awaiting something ");
+              switch(await* remote_func(txMap, txTopMap, pre_notification)){
+                case(#trappable(val)) #trappable((val.0,val.1,val.2));
+                case(#awaited(val)){
+                  #awaited((val.0,val.1,val.2));
+                };
+                case(#err(#awaited(tx))){
+                  debug if (debug_channel.transfer) D.print("awaited error " # debug_show(tx));
+                  return #err(#awaited(#Err(#GenericError({error_code= 6453; message=tx}))));
+                };
+                case(#err(#trappable(tx))){
+                  debug if (debug_channel.transfer) D.print("trappable error " # debug_show(tx));
+                  return #err(#trappable(#Err(#GenericError({error_code= 6453; message=tx}))));
+                };
+              };
+            };
           };
       };
 
@@ -794,7 +906,7 @@ module {
               fee = null;
           };
           //todo: override on initial mint?
-          await* transfer_tokens(caller, transfer_args, false);
+          await* transfer_tokens(caller, transfer_args, false, null);
       };
 
       /// `burn`
@@ -829,35 +941,44 @@ module {
       /// Returns:
       /// `TransferResult`: The result of the burn operation, either indicating success or providing error information.
       public func burn_tokens( caller : Principal, args : MigrationTypes.Current.BurnArgs, system_override: Bool) : async* Star.Star<MigrationTypes.Current.TransferResult, Text> {
-
-
-
           let transfer_args : MigrationTypes.Current.TransferArgs = {
               args with 
               to = state.minting_account;
               fee : ?Balance = null;
           };
 
-          await* transfer_tokens(caller, transfer_args, system_override);
+          await* transfer_tokens(caller, transfer_args, system_override, null);
       };
 
-      /// `validate_memo`
-      ///
-      /// Validates the provided memo by checking that its size is within the bounds set by the ledger's maximum memo size.
-      ///
-      /// Parameters:
-      /// - `memo`: The optional memo field of a transfer request.
-      ///
-      /// Returns:
-      /// `Bool`: True if the memo is valid, false otherwise.
-      public func validate_memo(memo : ?MigrationTypes.Current.Memo) : Bool {
-          switch (memo) {
-              case (?bytes) {
-                  bytes.size() <= state.max_memo;
-              };
-              case (_) true;
+      /// # testMemo
+    ///
+    /// Validates the size of the memo field to ensure it doesn't exceed the allowed number of bytes.
+    ///
+    /// ## Parameters
+    ///
+    /// - `val`: `?Blob` - The memo blob to be tested. This parameter can be `null` if no memo is provided.
+    ///
+    /// ## Returns
+    ///
+    /// `??Blob` - An optional optional blob which will return `null` if the blob size exceeds the
+    /// allowed maximum, or the blob itself if it's of a valid size.
+    ///
+    /// ## Remarks
+    ///
+    /// This function compares the size of the memo blob against the `max_memo` limit defined in the ledger's environment state.
+    ///
+    public func testMemo(val : ?Blob) : ??Blob{
+      switch(val){
+        case(null) return ?null;
+        case(?val){
+          let max_memo = state.max_memo;
+          if(val.size() > max_memo){
+            return null;
           };
+          return ??val;
+        };
       };
+    };
 
       /// `is_too_old`
       ///
@@ -972,7 +1093,7 @@ module {
             fee = null;
             memo = ?Text.encodeUtf8("clean");
             created_at_time = null;
-          }, true);
+          }, true, null);
 
           debug if(debug_channel.accounts) D.print("inspecting result " # debug_show(result));
 
@@ -1061,6 +1182,45 @@ module {
       };
     };
 
+    /// # testCreatedAt
+    ///
+    /// Validates a provided creation timestamp to ensure it's neither too old nor too far into the future,
+    /// relative to the ledger's time and a permissible drift amount.
+    ///
+    /// ## Parameters
+    ///
+    /// - `val`: `?Nat64` - The creation timestamp to be tested. Can be `null` for cases when the timestamp is not provided.
+    /// - `environment`: `Environment` - The environment settings that provide context such as permitted drift and the current ledger time.
+    ///
+    /// ## Returns
+    ///
+    /// A variant indicating success or specific error conditions:
+    /// - `#ok`: `?Nat64` - An optional containing the provided timestamp if valid.
+    /// - `#Err`: `{#TooOld; #InTheFuture: Nat64}` - Error variant indicating if the timestamp is too old or too far in the future.
+    ///
+    /// ## Remarks
+    ///
+    /// This function uses the ledger's permissible drift value from the environment to assess timestamp validity.
+    ///
+    public func testCreatedAt(val : ?Nat64) : {
+      #ok: ?Nat64;
+      #Err: {#TooOld; #InTheFuture: Nat64};
+      
+    }{
+      switch(val){
+        case(null) return #ok(null);
+        case(?val){
+          if(is_in_future(val)){
+            return #Err(#InTheFuture(get_time64()));
+          };
+          if(is_too_old(val)){
+            return #Err(#TooOld);
+          };
+          return #ok(?val);
+        };
+      };
+    };
+
     /// `validate_request`
     ///
     /// Perform checks against a transfer request to ensure it meets all the criteria for a valid and secure transfer.
@@ -1110,11 +1270,11 @@ module {
 
         debug if (debug_channel.validation) D.print("Checking memo");
 
-        if (not validate_memo(tx_req.memo)) {
+        if (testMemo(tx_req.memo) == null) {
             return #err(
                 #GenericError({
                     error_code = 4;
-                    message = "Memo must not be more than 32 bytes";
+                    message = "Memo must not be more than " # debug_show(state.max_memo) # " bytes";
                 }),
             );
         };
@@ -1198,34 +1358,35 @@ module {
         };
 
         debug if (debug_channel.validation) D.print("testing Time");
-        switch (tx_req.created_at_time) {
-            case (null) {};
-            case (?created_at_time) {
-                if (is_too_old(created_at_time)) {
-                    return #err(#TooOld);
+        switch (testCreatedAt(tx_req.created_at_time)) {
+            case (#ok(val)) {
+              switch(val){
+                case(null){};
+                case(?val){
+                  //according to icrc-1, if created at time is null, don't deduplicate.
+                  switch (deduplicate(tx_req)) {
+                      case (#err(tx_index)) {
+                          return #err(
+                              #Duplicate {
+                                  duplicate_of = tx_index;
+                              },
+                          );
+                      };
+                      case (_) {};
+                  };
                 };
-
-                if (is_in_future(created_at_time)) {
-                    return #err(
-                        #CreatedInFuture {
-                            ledger_time = get_time64();
-                        },
-                    );
-                };
-
-                
+              };
             };
-        };
-
-        switch (deduplicate(tx_req)) {
-            case (#err(tx_index)) {
-                return #err(
-                    #Duplicate {
-                        duplicate_of = tx_index;
-                    },
-                );
+            case (#Err(#TooOld)) {
+              return #err(#TooOld);
             };
-            case (_) {};
+            case(#Err(#InTheFuture(val))){
+              return #err(
+                  #CreatedInFuture {
+                      ledger_time = get_time64();
+                  },
+              );
+            };
         };
 
         debug if (debug_channel.validation) D.print("done validate");

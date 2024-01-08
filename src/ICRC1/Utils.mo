@@ -136,22 +136,31 @@ module {
     };
 
     // Formats the tx request into a finalised transaction
-    public func req_to_tx(tx_req : MigrationTypes.Current.TransactionRequest, index: Nat) : MigrationTypes.Current.Transaction {
+    public func req_to_tx(tx_req : MigrationTypes.Current.TransactionRequestNotification, index: Nat) : MigrationTypes.Current.Transaction {
+
+        let override_fee = {tx_req with
+
+          fee = if(?tx_req.calculated_fee != tx_req.fee){
+            ?tx_req.calculated_fee
+          } else {
+            tx_req.fee
+          };
+        };
 
         {
             kind = kind_to_text(tx_req.kind);
             mint = switch (tx_req.kind) {
-                case (#mint) { ?tx_req };
+                case (#mint) { ?override_fee };
                 case (_) null;
             };
 
             burn = switch (tx_req.kind) {
-                case (#burn) { ?tx_req };
+                case (#burn) { ?override_fee };
                 case (_) null;
             };
 
             transfer = switch (tx_req.kind) {
-                case (#transfer) { ?tx_req };
+                case (#transfer) { ?override_fee };
                 case (_) null;
             };
             

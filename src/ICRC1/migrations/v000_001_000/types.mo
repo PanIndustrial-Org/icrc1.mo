@@ -88,10 +88,11 @@ module {
     get_time : ?(() -> Int);
     get_fee : ?((State, Environment, TransferArgs) -> Balance);
     add_ledger_transaction: ?((Value, ?Value) -> Nat);
-    can_transfer : ?{
-      #Sync : ((trx: Value, trxtop: ?Value, notification: TransactionRequestNotification) -> Result.Result<(trx: Value, trxtop: ?Value, notification: TransactionRequestNotification), Text>);
-      #Async : ((trx: Value, trxtop: ?Value, notification: TransactionRequestNotification) -> async* Star.Star<(trx: Value, trxtop: ?Value, notification: TransactionRequestNotification), Text>);
-    };
+  };
+
+  public type CanTransfer = ?{
+    #Sync : ((trx: Value, trxtop: ?Value, notification: TransactionRequestNotification) -> Result.Result<(trx: Value, trxtop: ?Value, notification: TransactionRequestNotification), Text>);
+    #Async : ((trx: Value, trxtop: ?Value, notification: TransactionRequestNotification) -> async* Star.Star<(trx: Value, trxtop: ?Value, notification: TransactionRequestNotification), Text>);
   };
 
   /// `Value`

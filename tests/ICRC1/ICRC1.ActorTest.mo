@@ -31,7 +31,6 @@ module {
   let base_environment= {
     get_time = null;
     add_ledger_transaction = null;
-    can_transfer = null;
     get_fee = null;
   };
 
@@ -167,8 +166,6 @@ module {
           get_time = ?(func () : Int {test_time});
           add_ledger_transaction = null;
           get_fee = null;
-          can_transfer = null;
-          can_transfer_async = null;
         };
 
 
@@ -721,8 +718,8 @@ module {
                                 let res_ = await* icrc1.transfer_tokens(
                                     user1.owner,
                                     transfer_args,
-                                   
-                                    false
+                                    false,
+                                    null
                                 );
 
                                  D.print("testing transfe" # debug_show(res_, icrc1.balance_of(user1), icrc1.get_state()._burned_tokens, icrc1.balance_of( user2), icrc1.total_supply()));
@@ -795,11 +792,13 @@ module {
                          D.print("result for mint 1 was " # debug_show(mint));
                         // First transfer
                         let result1 = await* icrc1.transfer_tokens(user1.owner,
-                        { to = user2; from_subaccount = user1.subaccount; amount = 1; created_at_time=null; fee=?500_000_000; memo = ?Text.encodeUtf8("Memo 1") },  false);
+                        { to = user2; from_subaccount = user1.subaccount; amount = 1; created_at_time=null; fee=?500_000_000; memo = ?Text.encodeUtf8("Memo 1") },  false,
+                                    null);
                         D.print("result for memo 1 was " # debug_show(result1));
                         // Second transfer with a different memo
                         let res = await* icrc1.transfer_tokens(user1.owner,
-                        { to = user2; from_subaccount = user1.subaccount; amount = 1; fee=?500_000_000; created_at_time=null; memo = ?Text.encodeUtf8("Memo 2") },  false);
+                        { to = user2; from_subaccount = user1.subaccount; amount = 1; fee=?500_000_000; created_at_time=null; memo = ?Text.encodeUtf8("Memo 2") },  false,
+                                    null);
 
                         D.print("result for memo 2 was " # debug_show(res));
                         let #trappable(#Ok(result)) = res;
@@ -817,13 +816,15 @@ module {
                         D.print("result for mint 1 was " # debug_show(mint));
                         // First transfer
                         let result1 =  await* icrc1.transfer_tokens(user1.owner,
-                        { to = user2; from_subaccount = user1.subaccount; amount = 1; created_at_time =?Nat64.fromNat(Int.abs(Time.now())); fee=?500_000_000;memo = ?Text.encodeUtf8("Memo 1") },  false);
+                        { to = user2; from_subaccount = user1.subaccount; amount = 1; created_at_time =?Nat64.fromNat(Int.abs(Time.now())); fee=?500_000_000;memo = ?Text.encodeUtf8("Memo 1") },  false,
+                                    null);
 
                         D.print("result for date 1 was " # debug_show(result1));
 
                         // Second transfer with a different memo
                         let res= await* icrc1.transfer_tokens(user1.owner,
-                        { to = user2; from_subaccount = user1.subaccount; amount = 1; fee=?500_000_000; created_at_time= ?(Nat64.fromNat(Int.abs(Time.now() + 10_000))); memo = ?Text.encodeUtf8("Memo 1") },  false);
+                        { to = user2; from_subaccount = user1.subaccount; amount = 1; fee=?500_000_000; created_at_time= ?(Nat64.fromNat(Int.abs(Time.now() + 10_000))); memo = ?Text.encodeUtf8("Memo 1") },  false,
+                                    null);
                          D.print("result for date 2 was " # debug_show(res));
 
                         let #trappable(#Ok(result)) = res;
@@ -843,13 +844,15 @@ module {
                         D.print("result for mint 1 was " # debug_show(mint));
                         // First transfer
                         let result1 =  await* icrc1.transfer_tokens(user1.owner,
-                        { to = user2; from_subaccount = user1.subaccount; amount = 1; created_at_time =?Nat64.fromNat(Int.abs(Time.now())); fee=?500_000_000;memo = ?Text.encodeUtf8("Memo 1") },  false);
+                        { to = user2; from_subaccount = user1.subaccount; amount = 1; created_at_time =?Nat64.fromNat(Int.abs(Time.now())); fee=?500_000_000;memo = ?Text.encodeUtf8("Memo 1") },  false,
+                                    null);
 
                         D.print("result for date 1 was " # debug_show(result1));
 
                         // Second transfer with a different memo
                         let res= await* icrc1.transfer_tokens(user1.owner,
-                        { to = user2; from_subaccount = user1.subaccount; amount = 1; fee=?500_000_000; created_at_time= ?(Nat64.fromNat(Int.abs(Time.now() + 10_000))); memo = ?Text.encodeUtf8("Memo 1") },  false);
+                        { to = user2; from_subaccount = user1.subaccount; amount = 1; fee=?500_000_000; created_at_time= ?(Nat64.fromNat(Int.abs(Time.now() + 10_000))); memo = ?Text.encodeUtf8("Memo 1") },  false,
+                                    null);
                          D.print("result for date 2 was " # debug_show(res));
 
                         let #trappable(#Ok(result)) = res;
@@ -858,6 +861,9 @@ module {
 
                         assertTrue(result > 0); // Check transaction index or proper variant
                       }),
+                      /*
+                      Deduplication is not supposed to be peformed if the created at time is null according otthe icrc1 spec, so this test was deactivated
+
                       it("Deduplication with Test Time", do {
                         test_time := Time.now();
 
@@ -870,12 +876,14 @@ module {
                          D.print("Deduplication result for mint 1 was " # debug_show(mint));
                         // First transfer
                         let result1 = await* icrc1.transfer_tokens(user1.owner,
-                        { to = user2; from_subaccount = user1.subaccount; amount = 1; created_at_time=null; fee=?500_000_000;memo = ?Text.encodeUtf8("Memo 1") },  false);
+                        { to = user2; from_subaccount = user1.subaccount; amount = 1; created_at_time=null; fee=?500_000_000;memo = ?Text.encodeUtf8("Memo 1") },  false,
+                                    null);
                         D.print(" Deduplication result for memo 1 was " # debug_show(result1));
 
                         // Second exact transfer should fail
                         let result2 = await* icrc1.transfer_tokens(user1.owner,
-                        { to = user2; from_subaccount = user1.subaccount; amount = 1; created_at_time=null; fee=?500_000_000;memo = ?Text.encodeUtf8("Memo 1") },  false);
+                        { to = user2; from_subaccount = user1.subaccount; amount = 1; created_at_time=null; fee=?500_000_000;memo = ?Text.encodeUtf8("Memo 1") },  false,
+                                    null);
 
                         D.print("Deduplication result for memo 2 was " # debug_show(result2));
                         let #trappable(#Err(#Duplicate(result))) = result2;
@@ -889,7 +897,7 @@ module {
                         //let fake1 = await Fake.Fake();
 
                         let result3 = await* icrc1.transfer_tokens(user1.owner,
-                        { to = user2; from_subaccount = user1.subaccount; amount = 1; created_at_time=null; fee=?500_000_000;memo = ?Text.encodeUtf8("Memo 1") },  false);
+                        { to = user2; from_subaccount = user1.subaccount; amount = 1; created_at_time=null; fee=?500_000_000;memo = ?Text.encodeUtf8("Memo 1") },  false, null);
 
                         D.print("Dedup result for memo 3 was " # debug_show(result3));
                         let #trappable(#Ok(res3)) = result3;
@@ -898,7 +906,7 @@ module {
 
                         assertAllTrue([res3 == 2 ,
                         result.duplicate_of == 1]); // Check transaction index or proper variant
-                      }),
+                      }),*/
                       it("Transfer with Insufficient Funds", do {
                         let icrc1 = get_icrc(default_token_args);
                        
@@ -907,7 +915,8 @@ module {
                         { to = user1; amount = tx_amount; memo = null; created_at_time = null; });
                         // First transfer
                         let result1 = await* icrc1.transfer_tokens(user1.owner,
-                        { to = user2; from_subaccount = user1.subaccount; amount = tx_amount * 2; created_at_time=null; fee=?500_000_000;memo = ?Text.encodeUtf8("Memo 1") },  false);
+                        { to = user2; from_subaccount = user1.subaccount; amount = tx_amount * 2; created_at_time=null; fee=?500_000_000;memo = ?Text.encodeUtf8("Memo 1") },  false,
+                                    null);
 
                         D.print("Insufficent 1 was " # debug_show(result1));
 
@@ -923,7 +932,8 @@ module {
                         
                         // First transfer
                         let result1 = await* icrc1.transfer_tokens(user1.owner,
-                        { to = user2; from_subaccount = user1.subaccount; amount = 1; created_at_time=null; fee=?(icrc1.fee() + 1);memo = ?Text.encodeUtf8("Memo 1") },  false);
+                        { to = user2; from_subaccount = user1.subaccount; amount = 1; created_at_time=null; fee=?(icrc1.fee() + 1);memo = ?Text.encodeUtf8("Memo 1") },  false,
+                                    null);
 
                         D.print("valid fee " # debug_show(result1));
 
@@ -945,7 +955,8 @@ module {
                         
                         // First transfer
                         let result1 = await* icrc1.transfer_tokens(user1.owner,
-                        { to = user2; from_subaccount = user1.subaccount; amount = 1; created_at_time=null; fee=null;memo = ?Text.encodeUtf8("Memo 1") },  false);
+                        { to = user2; from_subaccount = user1.subaccount; amount = 1; created_at_time=null; fee=null;memo = ?Text.encodeUtf8("Memo 1") },  false,
+                                    null);
 
                         D.print("valid fee " # debug_show(result1));
 
@@ -967,7 +978,8 @@ module {
                         
                         // First transfer
                         let result1 = await* icrc1.transfer_tokens(user1.owner,
-                        { to = user2; from_subaccount = user1.subaccount; amount = 1; created_at_time=null; fee=?(icrc1.fee() - 1);memo = ?Text.encodeUtf8("Memo 1") },  false);
+                        { to = user2; from_subaccount = user1.subaccount; amount = 1; created_at_time=null; fee=?(icrc1.fee() - 1);memo = ?Text.encodeUtf8("Memo 1") },  false,
+                                    null);
 
                         D.print("invalid fee " # debug_show(result1));
 
@@ -983,7 +995,8 @@ module {
                         
                         // First transfer
                         let result1 = await* icrc1.transfer_tokens(user1.owner,
-                        { to = user2; from_subaccount = user1.subaccount; amount = 1; created_at_time=?(U.get_time64(environment) + icrc1.get_state().permitted_drift + 1); fee=null;memo = ?Text.encodeUtf8("Memo 1") },  false);
+                        { to = user2; from_subaccount = user1.subaccount; amount = 1; created_at_time=?(U.get_time64(environment) + icrc1.get_state().permitted_drift + 1); fee=null;memo = ?Text.encodeUtf8("Memo 1") },  false,
+                                    null);
 
                         D.print("future " # debug_show(result1));
 
@@ -999,7 +1012,8 @@ module {
                         
                         // First transfer
                         let result1 = await* icrc1.transfer_tokens(user1.owner, 
-                        { to = user2; from_subaccount = user1.subaccount; amount = 1; created_at_time=?(U.get_time64(environment) - icrc1.get_state().transaction_window - icrc1.get_state().permitted_drift - 1); fee=null;memo = ?Text.encodeUtf8("Memo 1") },  false);
+                        { to = user2; from_subaccount = user1.subaccount; amount = 1; created_at_time=?(U.get_time64(environment) - icrc1.get_state().transaction_window - icrc1.get_state().permitted_drift - 1); fee=null;memo = ?Text.encodeUtf8("Memo 1") },  false,
+                                    null);
 
                         D.print("too old " # debug_show(result1));
 
@@ -1010,10 +1024,7 @@ module {
                       it("External sync can_transfer invalidates a transaction",
                           do {
                               
-                              let icrc1 = get_icrc_env(default_token_args, {
-                                environment with
-                                can_transfer = ?#Sync(externalCanTransferFalseSync)
-                              });
+                              let icrc1 = get_icrc(default_token_args);
                               let tx_amount = 1000*e8s;
 
                               let mint =  await* icrc1.mint_tokens(canister.owner,
@@ -1021,7 +1032,8 @@ module {
                               
                               // First transfer
                               let result1 = await* icrc1.transfer_tokens(user1.owner,
-                              { to = user2; from_subaccount = user1.subaccount; amount = 1; created_at_time=null; fee=null;memo = ?Text.encodeUtf8("Memo 1") },  false);
+                              { to = user2; from_subaccount = user1.subaccount; amount = 1; created_at_time=null; fee=null;memo = ?Text.encodeUtf8("Memo 1") },  false,
+                                    ?#Sync(externalCanTransferFalseSync));
 
                               D.print("reject sync " # debug_show(result1));
 
@@ -1032,10 +1044,7 @@ module {
                           it("External async can_transfer invalidates a transaction",
                           do {
                               
-                              let icrc1 = get_icrc_env(default_token_args, {
-                                environment with
-                                can_transfer = ?#Async(externalCanTransferFalseAsync)
-                              });
+                              let icrc1 = get_icrc(default_token_args);
                               let tx_amount = 1000*e8s;
 
                               let mint =  await* icrc1.mint_tokens(canister.owner,
@@ -1043,7 +1052,8 @@ module {
                               
                               // First transfer
                               let result1 = await* icrc1.transfer_tokens(user1.owner,
-                              { to = user2; from_subaccount = user1.subaccount; amount = 1; created_at_time=null; fee=null;memo = ?Text.encodeUtf8("Memo 1") },  false);
+                              { to = user2; from_subaccount = user1.subaccount; amount = 1; created_at_time=null; fee=null;memo = ?Text.encodeUtf8("Memo 1") },  false,
+                                    ?#Async(externalCanTransferFalseAsync));
 
                               D.print("reject async " # debug_show(result1));
 
@@ -1054,17 +1064,15 @@ module {
                           it("External sync can_transfer updates a transaction",
                           do {
                               
-                              let icrc1 = get_icrc_env(default_token_args, {
-                                environment with
-                                can_transfer = ?#Sync(externalCanTransferUpdateSync)
-                              });
+                              let icrc1 = get_icrc(default_token_args);
                               let tx_amount = 1000*e8s;
 
                               let mint =  await* icrc1.mint_tokens(canister.owner, { to = user1; amount = tx_amount; memo = null; created_at_time = null; });
                               
                               // First transfer
                               let result1 = await* icrc1.transfer_tokens(user1.owner,
-                              { to = user2; from_subaccount = user1.subaccount; amount = 1; created_at_time=null; fee=null;memo = ?Text.encodeUtf8("Memo 1") },  false);
+                              { to = user2; from_subaccount = user1.subaccount; amount = 1; created_at_time=null; fee=null;memo = ?Text.encodeUtf8("Memo 1") },  false,
+                                    ?#Sync(externalCanTransferUpdateSync));
 
                               D.print("update sync " # debug_show(result1));
 
@@ -1080,17 +1088,15 @@ module {
                           it("External async can_transfer updates a transaction",
                           do {
                               
-                              let icrc1 = get_icrc_env(default_token_args, {
-                                environment with
-                                can_transfer = ?#Async(externalCanTransferUpdateAsync)
-                              });
+                              let icrc1 = get_icrc(default_token_args);
                               let tx_amount = 1000*e8s;
 
                               let mint =  await* icrc1.mint_tokens( canister.owner, { to = user1; amount = tx_amount; memo = null; created_at_time = null; },);
                               
                               // First transfer
                               let result1 = await* icrc1.transfer_tokens(user1.owner,
-                              { to = user2; from_subaccount = user1.subaccount; amount = 1; created_at_time=null; fee=null;memo = ?Text.encodeUtf8("Memo 1") },  false);
+                              { to = user2; from_subaccount = user1.subaccount; amount = 1; created_at_time=null; fee=null;memo = ?Text.encodeUtf8("Memo 1") },  false,
+                                    ?#Async(externalCanTransferUpdateAsync));
 
                               D.print("update async " # debug_show(result1));
 
@@ -1114,7 +1120,8 @@ module {
                               
                               // First transfer
                               let result1 = await* icrc1.transfer_tokens(user1.owner,
-                              { to = user1; from_subaccount = user1.subaccount; amount = 1; created_at_time=null; fee=null;memo = ?Text.encodeUtf8("Memo 1") },  false);
+                              { to = user1; from_subaccount = user1.subaccount; amount = 1; created_at_time=null; fee=null;memo = ?Text.encodeUtf8("Memo 1") },  false,
+                                    null);
 
                               D.print("update self send " # debug_show(result1));
 
@@ -1135,7 +1142,8 @@ module {
                               
                               // First transfer
                               let result1 = await* icrc1.transfer_tokens(user1.owner,
-                              { to = user2; from_subaccount = user1.subaccount; amount = 0; created_at_time=null; fee=null;memo = ?Text.encodeUtf8("Memo 1") },  false);
+                              { to = user2; from_subaccount = user1.subaccount; amount = 0; created_at_time=null; fee=null;memo = ?Text.encodeUtf8("Memo 1") },  false,
+                                    null);
 
                               D.print("update self send " # debug_show(result1));
 
@@ -1168,7 +1176,8 @@ module {
                               
                               // First transfer
                               let result1 = await* icrc1.transfer_tokens(user1.owner,
-                              { to = user2; from_subaccount = user1.subaccount; amount = 1; created_at_time=null; fee=null;memo = ?Text.encodeUtf8("Memo 1") },  false);
+                              { to = user2; from_subaccount = user1.subaccount; amount = 1; created_at_time=null; fee=null;memo = ?Text.encodeUtf8("Memo 1") },  false,
+                                    null);
 
                               D.print("listner result " # debug_show(result1));
 
