@@ -675,7 +675,7 @@ module {
           handleBroadcastToListeners(tx_final, index);
 
 
-          handleCleanUp();
+          handleCleanUp<system>();
 
           debug if (debug_channel.transfer)D.print("done transfer");
           if(bAwaited){
@@ -799,13 +799,13 @@ module {
       ///
       /// Remarks:
       /// - If the ledger grows beyond 'max_accounts', older small balances are transferred to the minting account to tidy up the ledger.
-      public func handleCleanUp(){
+      public func handleCleanUp<system>(){
         debug if (debug_channel.transfer)D.print("cleaning");
         cleanUpRecents();
         switch(state.cleaning_timer){
           case(null){ //only need one active timer
             debug if(debug_channel.transfer) D.print("setting clean up timer");
-            state.cleaning_timer := ?Timer.setTimer(#seconds(0), checkAccounts);
+            state.cleaning_timer := ?Timer.setTimer<system>(#seconds(0), checkAccounts);
           };
           case(_){}
         };

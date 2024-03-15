@@ -110,7 +110,7 @@ shared ({ caller = _owner }) actor class Token  (
     // Deposit cycles into this canister.
     public shared func deposit_cycles() : async () {
         let amount = ExperimentalCycles.available();
-        let accepted = ExperimentalCycles.accept(amount);
+        let accepted = ExperimentalCycles.accept<system>(amount);
         assert (accepted == amount);
     };
 };
