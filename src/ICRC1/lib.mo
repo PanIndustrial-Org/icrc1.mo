@@ -1476,6 +1476,18 @@ module {
     public func transfer_req_to_value_top(calculated_fee : MigrationTypes.Current.Balance, request: TransactionRequest) : Value {
       let trx = Vec.new<(Text, Value)>();
 
+      switch(request.kind){
+        case(#mint) {
+          Vec.add(trx, ("type",#Text("1mint")));
+        };
+        case(#burn){
+          Vec.add(trx, ("op",#Text("1burn")));
+        };
+        case(#transfer){
+          Vec.add(trx, ("op",#Text("1xfer")));
+        };
+      };
+
 
       switch(request.fee){
         case(null){
