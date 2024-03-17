@@ -183,7 +183,7 @@ module {
           ICRC1.ICRC1(?token, canister.owner, env);
         };
 
-        let externalCanTransferFalseSync = func (trx: ICRC1.Value, trxtop: ?ICRC1.Value, notification: ICRC1.TransactionRequestNotification) : Result.Result<(trx: ICRC1.Value, trxtop: ?ICRC1.Value, notification: ICRC1.TransactionRequestNotification), Text> {
+        let externalCanTransferFalseSync = func <system>(trx: ICRC1.Value, trxtop: ?ICRC1.Value, notification: ICRC1.TransactionRequestNotification) : Result.Result<(trx: ICRC1.Value, trxtop: ?ICRC1.Value, notification: ICRC1.TransactionRequestNotification), Text> {
 
             switch(notification.kind){
               case(#transfer(val)){
@@ -198,7 +198,7 @@ module {
             
         };
 
-        let externalCanTransferFalseAsync = func (trx: ICRC1.Value, trxtop: ?ICRC1.Value, notification: ICRC1.TransactionRequestNotification) : async* Star.Star<(trx: ICRC1.Value, trxtop: ?ICRC1.Value, notification: ICRC1.TransactionRequestNotification), Text> {
+        let externalCanTransferFalseAsync = func <system>(trx: ICRC1.Value, trxtop: ?ICRC1.Value, notification: ICRC1.TransactionRequestNotification) : async* Star.Star<(trx: ICRC1.Value, trxtop: ?ICRC1.Value, notification: ICRC1.TransactionRequestNotification), Text> {
             // This mock externalCanTransfer function always returns false,
             // indicating the transfer should not proceed.
             let fake = await Fake.Fake();
@@ -212,7 +212,7 @@ module {
             }
         };
 
-        let externalCanTransferUpdateSync = func (trx: ICRC1.Value, trxtop: ?ICRC1.Value, notification: ICRC1.TransactionRequestNotification) : Result.Result<(trx: ICRC1.Value, trxtop: ?ICRC1.Value, notification: ICRC1.TransactionRequestNotification), Text> {
+        let externalCanTransferUpdateSync = func <system>(trx: ICRC1.Value, trxtop: ?ICRC1.Value, notification: ICRC1.TransactionRequestNotification) : Result.Result<(trx: ICRC1.Value, trxtop: ?ICRC1.Value, notification: ICRC1.TransactionRequestNotification), Text> {
             let results = Vector.new<(Text,ICRC1.Value)>();
             switch(notification.kind){
               case(#transfer){};
@@ -238,7 +238,7 @@ module {
             });
         };
 
-        let externalCanTransferUpdateAsync = func (trx: ICRC1.Value, trxtop: ?ICRC1.Value, notification: ICRC1.TransactionRequestNotification) : async* Star.Star<(trx: ICRC1.Value, trxtop: ?ICRC1.Value, notification: ICRC1.TransactionRequestNotification), Text> {
+        let externalCanTransferUpdateAsync = func <system>(trx: ICRC1.Value, trxtop: ?ICRC1.Value, notification: ICRC1.TransactionRequestNotification) : async* Star.Star<(trx: ICRC1.Value, trxtop: ?ICRC1.Value, notification: ICRC1.TransactionRequestNotification), Text> {
             let fake = await Fake.Fake();
             switch(notification.kind){
               case(#transfer){};
@@ -1162,7 +1162,7 @@ module {
 
                                var called_count = 0;
 
-                              let a_func = func(trx: ICRC1.Transaction, trxid: Nat){
+                              let a_func = func<system>(trx: ICRC1.Transaction, trxid: Nat){
                                  D.print("listner called " # debug_show(trx));
                                 called_count += 1;
                               };

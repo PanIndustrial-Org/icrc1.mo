@@ -538,7 +538,7 @@ module {
       ///
       /// Returns:
       /// `TransferResult`: The result of the attempt to transfer tokens, either indicating success or providing error information.
-      public func transfer_tokens(
+      public func transfer_tokens<system>(
           caller : Principal,
           args : MigrationTypes.Current.TransferArgs,
           system_override : Bool,
@@ -658,7 +658,7 @@ module {
           
 
           // store transaction
-          let index = handleAddRecordToLedger(finaltx, finaltxtop_var, notification);
+          let index = handleAddRecordToLedger<system>(finaltx, finaltxtop_var, notification);
 
           let tx_final = Utils.req_to_tx(notification, index);
 
@@ -672,7 +672,7 @@ module {
 
           ignore Map.put<Blob, (Nat64, Nat)>(state.recent_transactions, Map.bhash, trxhash, (get_time64(), index));
 
-          handleBroadcastToListeners(tx_final, index);
+          handleBroadcastToListeners<system>(tx_final, index);
 
 
           handleCleanUp<system>();
@@ -696,10 +696,10 @@ module {
       ///
       /// Remarks:
       /// - The function goes through the vector of registered token-transferred listeners and invokes their callback functions with the transaction details.
-      public func handleBroadcastToListeners(tx_final : Transaction, index: Nat) : (){
+      public func handleBroadcastToListeners<system>(tx_final : Transaction, index: Nat) : (){
         debug if (debug_channel.transfer)D.print("attempting to call listeners" # debug_show(Vec.size(token_transferred_listeners)));
         for(thisItem in Vec.vals(token_transferred_listeners)){
-          thisItem.1(tx_final, index);
+          thisItem.1<system>(tx_final, index);
         };
       };
 
@@ -755,10 +755,10 @@ module {
       ///
       /// Remarks:
       /// - Based on the environment settings, the transfer may be added to a local transaction log or processed through an external function for ledger recording.
-      public func handleAddRecordToLedger(finaltx : Value, finaltxtop: ?Value, notification: TransactionRequestNotification) : Nat{
+      public func handleAddRecordToLedger<system>(finaltx : Value, finaltxtop: ?Value, notification: TransactionRequestNotification) : Nat{
         switch(environment.add_ledger_transaction){
             case(?add_ledger_transaction){
-              add_ledger_transaction(finaltx, finaltxtop);
+              add_ledger_transaction<system>(finaltx, finaltxtop);
             };
             case(null){
               let tx = Utils.req_to_tx(notification, Vec.size(state.local_transactions));
@@ -833,7 +833,7 @@ module {
               #trappable((txMap, txTopMap, pre_notification));
             };
             case(?#Sync(remote_func)){
-              switch(remote_func(txMap, txTopMap, pre_notification)){
+              switch(remote_func<system>(txMap, txTopMap, pre_notification)){
                 case(#ok(val)) return #trappable((val.0,val.1,val.2));
                 case(#err(tx)) return #err(#trappable(#Err(#GenericError({error_code= 6453; message=tx}))));
               };

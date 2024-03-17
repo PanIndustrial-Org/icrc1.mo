@@ -87,12 +87,12 @@ module {
   public type Environment = {
     get_time : ?(() -> Int);
     get_fee : ?((State, Environment, TransferArgs) -> Balance);
-    add_ledger_transaction: ?((Value, ?Value) -> Nat);
+    add_ledger_transaction: ?(<system>(Value, ?Value) -> Nat);
   };
 
   public type CanTransfer = ?{
-    #Sync : ((trx: Value, trxtop: ?Value, notification: TransactionRequestNotification) -> Result.Result<(trx: Value, trxtop: ?Value, notification: TransactionRequestNotification), Text>);
-    #Async : ((trx: Value, trxtop: ?Value, notification: TransactionRequestNotification) -> async* Star.Star<(trx: Value, trxtop: ?Value, notification: TransactionRequestNotification), Text>);
+    #Sync : (<system>(trx: Value, trxtop: ?Value, notification: TransactionRequestNotification) -> Result.Result<(trx: Value, trxtop: ?Value, notification: TransactionRequestNotification), Text>);
+    #Async : (<system>(trx: Value, trxtop: ?Value, notification: TransactionRequestNotification) -> async* Star.Star<(trx: Value, trxtop: ?Value, notification: TransactionRequestNotification), Text>);
   };
 
   /// `Value`
@@ -453,5 +453,5 @@ module {
   /// `TokenTransferredListener`
   ///
   /// Represents a callback function type that notifiers will implement to be alerted to token transfer events.
-  public type TokenTransferredListener = (Transaction, trxid: Nat) -> ();
+  public type TokenTransferredListener = <system>(Transaction, trxid: Nat) -> ();
 };
