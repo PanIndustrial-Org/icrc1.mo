@@ -1481,10 +1481,10 @@ module {
           Vec.add(trx, ("type",#Text("1mint")));
         };
         case(#burn){
-          Vec.add(trx, ("op",#Text("1burn")));
+          Vec.add(trx, ("type",#Text("1burn")));
         };
         case(#transfer){
-          Vec.add(trx, ("op",#Text("1xfer")));
+          Vec.add(trx, ("type",#Text("1xfer")));
         };
       };
 
