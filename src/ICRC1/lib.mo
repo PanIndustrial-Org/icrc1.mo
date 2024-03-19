@@ -214,12 +214,11 @@ module {
       /// Returns:
       /// `MetaData`: A record containing all metadata entries for this ledger.
       public func metadata() : [MetaDatum] {
-         let md = switch(state.metadata){
-          case(?val)val;
+         switch(state.metadata){
+          case(?val){};
           case(null) {
             let newdata = init_metadata();
             state.metadata := ?newdata;
-            newdata
           };
          };
 
@@ -1478,13 +1477,13 @@ module {
 
       switch(request.kind){
         case(#mint) {
-          Vec.add(trx, ("type",#Text("1mint")));
+          Vec.add(trx, ("btype",#Text("1mint")));
         };
         case(#burn){
-          Vec.add(trx, ("type",#Text("1burn")));
+          Vec.add(trx, ("btype",#Text("1burn")));
         };
         case(#transfer){
-          Vec.add(trx, ("type",#Text("1xfer")));
+          Vec.add(trx, ("btype",#Text("1xfer")));
         };
       };
 
