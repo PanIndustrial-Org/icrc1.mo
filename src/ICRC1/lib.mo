@@ -14,8 +14,6 @@ import Principal "mo:base/Principal";
 import Result "mo:base/Result";
 import Text "mo:base/Text";
 import Timer "mo:base/Timer";
-
-import Itertools "mo:itertools/Iter";
 import RepIndy "mo:rep-indy-hash";
 import Star "mo:star/star";
 import Vec "mo:vector";
@@ -215,11 +213,12 @@ module {
       /// `MetaData`: A record containing all metadata entries for this ledger.
       public func metadata() : [MetaDatum] {
          switch(state.metadata){
-          case(?val){};
+          
           case(null) {
             let newdata = init_metadata();
             state.metadata := ?newdata;
           };
+          case(_){};
          };
 
          switch(state.metadata){
@@ -242,7 +241,7 @@ module {
       /// `MetaData`: A record containing all metadata entries for this ledger.
       public func register_metadata(request: [MetaDatum]) : [MetaDatum]{
         let md = switch(state.metadata){
-          case(?val){
+          case(?_val){
             switch(state.metadata){
               case(?val){
                 switch(val){
@@ -722,12 +721,12 @@ module {
           if(state.fee_collector_emitted){
             finaltxtop_var := switch(Utils.insert_map(finaltxtop_var, "fee_collector_block", #Nat(state.fee_collector_block))){
               case(#ok(val)) ?val;
-              case(#err(err)) return #err("unreachable map addition");
+              case(#err(err)) return #err("unreachable map addition" # debug_show(err));
             };
           } else {
             finaltxtop_var := switch(Utils.insert_map(finaltxtop_var, "fee_collector", Utils.accountToValue(fee_collector))){
               case(#ok(val)) ?val;
-              case(#err(err)) return #err("unreachable map addition");
+              case(#err(err)) return #err("unreachable map addition" # debug_show(err));
             };
           };
 
@@ -778,7 +777,7 @@ module {
       /// - This function is used when fee collection pertains to a specific block transaction, recording its occurrence.
       public func setFeeCollectorBlock(index : Nat){
         switch(state.fee_collector){
-            case(?val){
+            case(?_val){
               
               if(state.fee_collector_emitted){} else {
                 state.fee_collector_block := index;
@@ -1379,7 +1378,7 @@ module {
             case (#Err(#TooOld)) {
               return #err(#TooOld);
             };
-            case(#Err(#InTheFuture(val))){
+            case(#Err(#InTheFuture(_val))){
               return #err(
                   #CreatedInFuture {
                       ledger_time = get_time64();
@@ -1494,8 +1493,7 @@ module {
             Vec.add(trx, ("fee", #Nat(calculated_fee)));
           };
         };
-        case(?val){
-        };
+        case(_){};
       };
 
       Vec.add(trx, ("ts", #Nat(Nat64.toNat(get_time64()))));

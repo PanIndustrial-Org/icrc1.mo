@@ -12,7 +12,7 @@ actor {
         ICRC1.testInitInvalidParameters
     ];
 
-    public func run_tests() : async () {
+    public func runTests() : async () {
         for (test in test_modules.vals()) {
             let success = ActorSpec.run([await test()]);
 

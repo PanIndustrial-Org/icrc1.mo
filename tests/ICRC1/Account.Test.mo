@@ -5,8 +5,6 @@ import Iter "mo:base/Iter";
 import Nat8 "mo:base/Nat8";
 import Principal "mo:base/Principal";
 
-import Itertools "mo:itertools/Iter";
-
 import Account "../../src/ICRC1/Account";
 import ActorSpec "../utils/ActorSpec";
 

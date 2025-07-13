@@ -13,9 +13,6 @@ import Principal "mo:base/Principal";
 import Result "mo:base/Result";
 import Text "mo:base/Text";
 import Time "mo:base/Time";
-
-import ArrayModule "mo:array/Array";
-import Itertools "mo:itertools/Iter";
 import AccountTools "mo:account";
 
 

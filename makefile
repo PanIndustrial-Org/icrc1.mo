@@ -17,4 +17,4 @@ actor-test: dfx-cache-install
 	-dfx start --background
 	dfx deploy test
 	dfx ledger fabricate-cycles --canister test
-	dfx canister call test run_tests
+	dfx canister call test runTests

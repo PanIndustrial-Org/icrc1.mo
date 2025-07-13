@@ -14,12 +14,9 @@ import Principal "mo:base/Principal";
 import Result "mo:base/Result";
 import Time "mo:base/Time";
 
-import ArrayModule "mo:array/Array";
-import Itertools "mo:itertools/Iter";
-import STMap "mo:StableTrieMap";
 import Vec "mo:vector";
 
-import Map "mo:map9/Map";
+import Map "mo:map/Map";
 
 import Account "Account";
 import MigrationTypes "./migrations/types";

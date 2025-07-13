@@ -8,8 +8,8 @@ import D "mo:base/Debug";
 import Order "mo:base/Order";
 import Principal "mo:base/Principal";
 import Result "mo:base/Result";
-import MapLib "mo:map9/Map";
-import SetLib "mo:map9/Set";
+import MapLib "mo:map/Map";
+import SetLib "mo:map/Set";
 import Star "mo:star/star";
 import VecLib "mo:vector";
 

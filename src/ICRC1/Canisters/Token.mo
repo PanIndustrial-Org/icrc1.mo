@@ -1,15 +1,10 @@
 ///This is a naieve token implementation and shows the minimum possible implementation. It does not provide archiving and will not scale.
 ///Please see https://github.com/PanIndustrial-Org/ICRC_fungible for a full featured implementation
 
-import Array "mo:base/Array";
-import D "mo:base/Debug";
 import ExperimentalCycles "mo:base/ExperimentalCycles";
-import Iter "mo:base/Iter";
-import Option "mo:base/Option";
-import Principal "mo:base/Principal";
-import Time "mo:base/Time";
 
-import Vec "mo:vector";
+import Principal "mo:base/Principal";
+
 
 import ICRC1 "..";
 
@@ -17,35 +12,21 @@ shared ({ caller = _owner }) actor class Token  (
     init_args : ICRC1.InitArgs,
 ) = this{
 
-    let icrc1_args : ICRC1.InitArgs = {
-        init_args with minting_account = switch(
-            init_args.minting_account){
-              case(?val) ?val;
-              case(null) {?{
-                owner = _owner;
-                subaccount = null;
-              }};
-            };
-    };
+    
 
     stable let icrc1_migration_state = ICRC1.init(ICRC1.initialState(), #v0_1_0(#id),?init_args, _owner);
 
-    let #v0_1_0(#data(icrc1_state_current)) = icrc1_migration_state;
+    let #v0_1_0(#data(_icrc1_state_current)) = icrc1_migration_state;
 
     private var _icrc1 : ?ICRC1.ICRC1 = null;
 
-    private func get_icrc1_state() : ICRC1.CurrentState {
-      return icrc1_state_current;
-    };
-
     private func get_icrc1_environment() : ICRC1.Environment {
-    {
-      get_time = null;
-      get_fee = null;
-      add_ledger_transaction = null;
-      can_transfer = null;
+      {
+        get_time = null;
+        get_fee = null;
+        add_ledger_transaction = null;
+      };
     };
-  };
 
     func icrc1() : ICRC1.ICRC1 {
     switch(_icrc1){
